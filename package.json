@@ -1,0 +1,18 @@
+{
+  "name": "momoya",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Momoya Monorepo Project",
+  "scripts": {
+    "dev:weapp": "pnpm --filter @momoya/mobile dev:weapp",
+    "dev:server": "pnpm --filter @momoya/server start:dev",
+    "dev": "concurrently -n \"Taro,Nest\" -c \"blue,green\" \"pnpm dev:weapp\" \"pnpm dev:server\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
