@@ -36,9 +36,11 @@ services:
       MONGODB_URI: mongodb://${MOMOYA_APP_USERNAME}:${MOMOYA_APP_PASSWORD}@mongo:27017/momoya?authSource=momoya
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env.docker}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-2h}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env.docker}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-14d}
       UPLOAD_DIR: /app/uploads
       STATIC_BASE_URL: ${STATIC_BASE_URL:-http://localhost:3000/static}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     volumes:
       - server-uploads:/app/uploads
     ports:

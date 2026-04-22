@@ -6,6 +6,7 @@ import { WinstonModule, utilities } from 'nest-winston';
 import * as winston from 'winston';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { UserModule } from './modules/user/user.module';
 import { SeedModule } from './seed/seed.module';
@@ -47,6 +48,7 @@ import { SeedModule } from './seed/seed.module';
       },
     ]),
     UserModule,
+    AuthModule,
     HealthModule,
     SeedModule,
   ],

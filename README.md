@@ -2,10 +2,12 @@
 
 情侣日常记录小程序（monorepo）。
 
-- `apps/server`：NestJS 11 服务端（MongoDB + Socket.io，M1 仅基建）
-- `apps/mobile`：Taro 4.2（Vite）+ React 18 + Tailwind v4 + weapp-tailwindcss
+- `apps/server`：NestJS 11 服务端（MongoDB + Socket.io，当前进度 M2 登录体系）
+- `apps/mobile`：Taro 4.2（Vite）+ React 18 + Tailwind v4 + weapp-tailwindcss + Zustand
 
-## 快速开始（M1）
+当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）。
+
+## 快速开始
 
 ```powershell
 # 1. 安装依赖
@@ -30,11 +32,39 @@ pnpm dev:weapp    # 仅小程序
 
 > 如果你本机已经装了 MongoDB 7+，也可以跳过第 3 步，直接让服务端连 `mongodb://127.0.0.1:27017`。
 
+## 接口调试（Apifox / Swagger）
+
+后端启动后默认挂 Swagger：
+
+- UI：`http://localhost:3000/api/docs`
+- OpenAPI JSON（供 Apifox 同步）：`http://localhost:3000/api/docs-json`
+
+Apifox 里 **设置 → 数据管理 → 导入数据 → OpenAPI/Swagger → URL 导入**，填入上面的 JSON 地址并开启自动同步即可，后续加接口无需手工维护。详见 `apps/server/README.md#swagger--apifox-对接`。
+
 ## M1 验收
 
 - 后端：`GET http://localhost:3000/api/v1/health` 返回 `{ code: 0, data: { status: 'ok', mongo: 'up' }, msg: 'ok' }`。
 - 种子用户：启动日志含 `[seed] created initial users: jiangjiang, mengmeng`（或 `[seed] users exist, skipped`）。账号密码：`jiangjiang / 251212`、`mengmeng / 251212`，互为 partner。
 - 小程序：用微信开发者工具打开 `apps/mobile/dist`，首页浅粉背景 + 居中显示粉色 `momoya` 标题，Tailwind 工具类全部生效（`dist/app-origin.wxss` 含 `bg-pink-50` 等类且 `rpx` 单位已替换 `rem`）。
+
+## M2 验收
+
+**后端**：
+
+- Swagger UI 里可以看到 `登录鉴权` 分组下 5 个接口，均可直接 Try it out。
+- 用 `jiangjiang / 251212` 登录，返回 `{ accessToken, refreshToken, accessExpiresIn: 7200, refreshExpiresIn: 1209600, user }`。
+- 带 access token 访问 `/api/v1/auth/me` 返回当前用户；
+  用另一台模拟的"第二设备"再登录一次后，第一台的旧 access 立刻收到 `{ code: 40104, errorKey: 'E_SESSION_KICKED' }`。
+- `/auth/change-password` 旧密码错误时返回 `{ code: 40105, errorKey: 'E_AUTH_WRONG_OLD_PASSWORD' }`。
+- `/auth/logout` 后当前 token 的下一次请求返回 `E_SESSION_KICKED`。
+- 参考 `apps/server/README.md#m2-登录鉴权` 有完整 PowerShell 冒烟脚本。
+
+**小程序**：
+
+- `pnpm --filter @momoya/mobile build:weapp` 产出 `pages/login/index`、`pages/me/index`、`pages/me/change-password/index`。
+- 首次启动未登录 → 自动 `reLaunch` 到 `/pages/login/index`。
+- 登录成功后进入 `/pages/me/index`，显示昵称/用户名/签名，点击"修改密码"跳 `/pages/me/change-password/index`。
+- 改密成功后本机保持登录态（接口会返回新 tokens，`authStore` 自动替换）；同时模拟另一设备的登录会导致本机下次请求命中 `E_SESSION_KICKED`，网络层自动 `logout + reLaunch` 回登录页。
 
 ## Docker 使用
 
@@ -59,7 +89,8 @@ pnpm docker:dev:reset     # 停止并清空数据卷（清库重来）
 
    ```powershell
    Copy-Item .env.docker.example .env.docker
-   # 必须修改的三项：MONGO_ROOT_PASSWORD、MOMOYA_APP_PASSWORD、JWT_ACCESS_SECRET
+   # 必须修改：MONGO_ROOT_PASSWORD、MOMOYA_APP_PASSWORD、JWT_ACCESS_SECRET、JWT_REFRESH_SECRET
+   # access / refresh 两把 secret 必须不同，建议分别 openssl rand -hex 32
    ```
 
 2. 构建并启动：

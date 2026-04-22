@@ -57,6 +57,11 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       ]
     },
     mini: {
+      // Taro 4.x + Vite 在小程序生产打包时，会把带有 `react.ts/tsx` 文件名的第三方模块
+      // 误识别为 React 本身做替换，导致 zustand v5+ 报 `taro.react_production_min.create
+      // is not a function`。debugReact: true 跳过该替换逻辑（副作用：使用非压缩的
+      // React dev 包，bundle 稍大）。详见 NervJS/taro#17350。
+      debugReact: true,
       postcss: {
         pxtransform: {
           enable: true,

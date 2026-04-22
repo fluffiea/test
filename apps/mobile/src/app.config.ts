@@ -1,11 +1,14 @@
 export default defineAppConfig({
   pages: [
-    'pages/index/index'
+    'pages/me/index',
+    'pages/login/index',
+    'pages/me/change-password/index',
+    'pages/index/index',
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'WeChat',
-    navigationBarTextStyle: 'black'
-  }
+    navigationBarBackgroundColor: '#fdf2f8',
+    navigationBarTitleText: 'momoya',
+    navigationBarTextStyle: 'black',
+  },
 })

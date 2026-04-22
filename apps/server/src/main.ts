@@ -6,6 +6,8 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { setupSwagger } from './common/swagger/setup-swagger';
+import type { AppConfig } from './config/configuration';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -32,9 +34,25 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const port = config.get<number>('port') ?? 3000;
+
+  const swaggerCfg = config.get<AppConfig['swagger']>('swagger');
+  if (swaggerCfg?.enabled) {
+    setupSwagger(app, { path: swaggerCfg.path });
+  }
+
   await app.listen(port);
 
   logger.log(`momoya server listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+  if (swaggerCfg?.enabled) {
+    logger.log(
+      `swagger ui:   http://localhost:${port}/${swaggerCfg.path}`,
+      'Bootstrap',
+    );
+    logger.log(
+      `openapi json: http://localhost:${port}/${swaggerCfg.path}-json`,
+      'Bootstrap',
+    );
+  }
 }
 
 void bootstrap();

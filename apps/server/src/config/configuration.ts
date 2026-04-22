@@ -5,25 +5,43 @@ export interface AppConfig {
   jwt: {
     accessSecret: string;
     accessTtl: string;
+    refreshSecret: string;
     refreshTtl: string;
   };
   upload: {
     dir: string;
     staticBaseUrl: string;
   };
+  swagger: {
+    enabled: boolean;
+    path: string;
+  };
 }
 
-export default (): AppConfig => ({
-  nodeEnv: (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development',
-  port: parseInt(process.env.PORT ?? '3000', 10),
-  mongodbUri: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/momoya',
-  jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
-    accessTtl: process.env.JWT_ACCESS_TTL ?? '2h',
-    refreshTtl: process.env.JWT_REFRESH_TTL ?? '14d',
-  },
-  upload: {
-    dir: process.env.UPLOAD_DIR ?? './uploads',
-    staticBaseUrl: process.env.STATIC_BASE_URL ?? 'http://localhost:3000/static',
-  },
-});
+const parseBool = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined) return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+};
+
+export default (): AppConfig => {
+  const nodeEnv = (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development';
+  return {
+    nodeEnv,
+    port: parseInt(process.env.PORT ?? '3000', 10),
+    mongodbUri: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/momoya',
+    jwt: {
+      accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
+      accessTtl: process.env.JWT_ACCESS_TTL ?? '2h',
+      refreshSecret: process.env.JWT_REFRESH_SECRET ?? '',
+      refreshTtl: process.env.JWT_REFRESH_TTL ?? '14d',
+    },
+    upload: {
+      dir: process.env.UPLOAD_DIR ?? './uploads',
+      staticBaseUrl: process.env.STATIC_BASE_URL ?? 'http://localhost:3000/static',
+    },
+    swagger: {
+      enabled: parseBool(process.env.SWAGGER_ENABLED, nodeEnv !== 'production'),
+      path: process.env.SWAGGER_PATH ?? 'api/docs',
+    },
+  };
+};

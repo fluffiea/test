@@ -8,7 +8,10 @@ export const validationSchema = Joi.object({
   MONGODB_URI: Joi.string().uri({ scheme: ['mongodb', 'mongodb+srv'] }).required(),
   JWT_ACCESS_SECRET: Joi.string().min(16).required(),
   JWT_ACCESS_TTL: Joi.string().default('2h'),
+  JWT_REFRESH_SECRET: Joi.string().min(16).required(),
   JWT_REFRESH_TTL: Joi.string().default('14d'),
   UPLOAD_DIR: Joi.string().default('./uploads'),
   STATIC_BASE_URL: Joi.string().uri().default('http://localhost:3000/static'),
+  SWAGGER_ENABLED: Joi.string().valid('true', 'false', '1', '0', 'yes', 'no', 'on', 'off').optional(),
+  SWAGGER_PATH: Joi.string().default('api/docs'),
 });
