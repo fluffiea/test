@@ -15,7 +15,9 @@ async function bootstrap() {
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['static', 'static/(.*)'],
+  });
   app.use(helmet());
   app.enableCors({
     origin: true,
@@ -40,9 +42,15 @@ async function bootstrap() {
     setupSwagger(app, { path: swaggerCfg.path });
   }
 
-  await app.listen(port);
+  // 显式绑 0.0.0.0，让局域网里的真机 / 虚拟机可访问（默认行为也是这样，
+  // 但写出来避免未来某次无意间改成 127.0.0.1）。
+  await app.listen(port, '0.0.0.0');
 
   logger.log(`momoya server listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+  logger.log(
+    `  (LAN access) 手机真机调试请用电脑的局域网 IPv4 访问 :${port}，并放行 Windows 防火墙入站`,
+    'Bootstrap',
+  );
   if (swaggerCfg?.enabled) {
     logger.log(
       `swagger ui:   http://localhost:${port}/${swaggerCfg.path}`,

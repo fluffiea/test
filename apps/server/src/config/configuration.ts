@@ -11,6 +11,7 @@ export interface AppConfig {
   upload: {
     dir: string;
     staticBaseUrl: string;
+    maxSizeBytes: number;
   };
   swagger: {
     enabled: boolean;
@@ -38,6 +39,7 @@ export default (): AppConfig => {
     upload: {
       dir: process.env.UPLOAD_DIR ?? './uploads',
       staticBaseUrl: process.env.STATIC_BASE_URL ?? 'http://localhost:3000/static',
+      maxSizeBytes: parseInt(process.env.UPLOAD_MAX_SIZE_BYTES ?? '5242880', 10),
     },
     swagger: {
       enabled: parseBool(process.env.SWAGGER_ENABLED, nodeEnv !== 'production'),

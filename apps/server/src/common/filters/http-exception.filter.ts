@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { MulterError } from 'multer';
 import {
   ErrorCode,
   ErrorKey,
@@ -34,7 +35,27 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let msg = 'Internal server error';
     let errorKey: ErrorKeyType = ErrorKey.E_INTERNAL;
 
-    if (exception instanceof HttpException) {
+    // 兜底：@nestjs/platform-express 会把 multer 错误封装成 HttpException，
+    // 以下分支只有在直接抛 MulterError 时才会命中（保留以防御）。
+    if (exception instanceof MulterError) {
+      switch (exception.code) {
+        case 'LIMIT_FILE_SIZE':
+          httpStatus = HttpStatus.PAYLOAD_TOO_LARGE;
+          errorKey = ErrorKey.E_UPLOAD_TOO_LARGE;
+          msg = '文件超过大小限制';
+          break;
+        case 'LIMIT_UNEXPECTED_FILE':
+        case 'LIMIT_FILE_COUNT':
+          httpStatus = HttpStatus.BAD_REQUEST;
+          errorKey = ErrorKey.E_UPLOAD_MISSING;
+          msg = '文件字段不正确，请检查字段名';
+          break;
+        default:
+          httpStatus = HttpStatus.BAD_REQUEST;
+          errorKey = ErrorKey.E_VALIDATION;
+          msg = exception.message || '文件上传失败';
+      }
+    } else if (exception instanceof HttpException) {
       httpStatus = exception.getStatus();
       const resBody = exception.getResponse();
       if (typeof resBody === 'string') {
@@ -55,6 +76,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
       if (errorKey === ErrorKey.E_INTERNAL) {
         errorKey = httpStatusToErrorKey[httpStatus] ?? ErrorKey.E_INTERNAL;
+      }
+
+      // 润色 platform-express 把 multer 错误转成的英文信息。
+      if (errorKey === ErrorKey.E_UPLOAD_TOO_LARGE && /^File too large$/i.test(msg)) {
+        msg = '文件超过大小限制';
+      } else if (
+        httpStatus === HttpStatus.BAD_REQUEST &&
+        /^Unexpected field/i.test(msg)
+      ) {
+        msg = '文件字段名必须为 file';
+        errorKey = ErrorKey.E_UPLOAD_MISSING;
       }
     } else if (exception instanceof Error) {
       msg = exception.message || msg;

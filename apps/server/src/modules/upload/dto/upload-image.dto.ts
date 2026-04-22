@@ -1,0 +1,34 @@
+import { ApiProperty } from '@nestjs/swagger';
+
+/**
+ * multipart/form-data 里的 file 字段，仅用于 Swagger 展示。
+ * 实际上传由 FileInterceptor + multer diskStorage 接管。
+ */
+export class UploadImageBodyDto {
+  @ApiProperty({
+    type: 'string',
+    format: 'binary',
+    description: '待上传的图片文件（jpeg / png / webp，≤ 5 MB）',
+  })
+  file!: unknown;
+}
+
+export class UploadImageResultDto {
+  @ApiProperty({
+    example: '/static/2026/04/3f3b8b9a-6e6e-4c6d-9e2d-8f9c7b1d3a0c.webp',
+    description: '相对路径（挂在 STATIC_BASE_URL 下对外暴露）',
+  })
+  url!: string;
+
+  @ApiProperty({
+    example: 'https://api.momoya.example.com/static/2026/04/3f3b8b9a.webp',
+    description: '拼好 STATIC_BASE_URL 的绝对地址，前端可直接使用',
+  })
+  absoluteUrl!: string;
+
+  @ApiProperty({ example: 'image/webp' })
+  mimeType!: string;
+
+  @ApiProperty({ example: 124578, description: '文件大小（字节）' })
+  size!: number;
+}

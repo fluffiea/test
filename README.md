@@ -5,7 +5,7 @@
 - `apps/server`：NestJS 11 服务端（MongoDB + Socket.io，当前进度 M2 登录体系）
 - `apps/mobile`：Taro 4.2（Vite）+ React 18 + Tailwind v4 + weapp-tailwindcss + Zustand
 
-当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）。
+当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）· **M3 资料编辑 + 图片上传基建**。
 
 ## 快速开始
 
@@ -65,6 +65,72 @@ Apifox 里 **设置 → 数据管理 → 导入数据 → OpenAPI/Swagger → UR
 - 首次启动未登录 → 自动 `reLaunch` 到 `/pages/login/index`。
 - 登录成功后进入 `/pages/me/index`，显示昵称/用户名/签名，点击"修改密码"跳 `/pages/me/change-password/index`。
 - 改密成功后本机保持登录态（接口会返回新 tokens，`authStore` 自动替换）；同时模拟另一设备的登录会导致本机下次请求命中 `E_SESSION_KICKED`，网络层自动 `logout + reLaunch` 回登录页。
+
+## M3 验收
+
+**后端**：
+
+- Swagger UI 新增 `文件上传`、`用户资料` 两个分组，接口 `POST /upload/image` / `PATCH /users/me` 可直接 Try it out（上传需先点左上角 Authorize 塞 access token）。
+- 以 `jiangjiang / 251212` 登录 → `POST /upload/image`（`file` 字段 + `image/jpeg|png|webp`）→ 返回 `{ url: "/static/2026/04/<uuid>.png", absoluteUrl, mimeType, size }`。
+- `PATCH /users/me` 允许 `nickname (1-20)` / `bio (0-100)` / `avatar (^/static/|http(s)://)`；其它字段（`username` / `partnerId` 等）被 `ValidationPipe` whitelist 拦截。
+- 错误分支覆盖：超大 → `E_UPLOAD_TOO_LARGE (413)`、非白名单 MIME → `E_UPLOAD_TYPE (415)`、错字段名 → `E_UPLOAD_MISSING (400)`、未登录 → `E_AUTH_REQUIRED (401)`。
+- 直接 `GET http://localhost:3000/static/<相对路径>` 能拿到图片（由 `@nestjs/serve-static` 挂载，不受 `/api/v1` 前缀影响）。
+- 参考 `apps/server/README.md#m3-冒烟脚本` 有完整 PowerShell 冒烟。
+
+**小程序**：
+
+- `pnpm --filter @momoya/mobile build:weapp` 产出 `pages/me/edit-profile/index`。
+- 我的页面点头像或"编辑资料"入口进入编辑页；点头像触发 `Taro.chooseMedia` 选图，自动上传成功后立即预览（文案变"头像已更新，记得保存"）。
+- 保存时只 PATCH 发生了变化的字段；成功后 `authStore.setUser` 同步更新，返回上一页头像/昵称立即反映最新值。
+- 头像显示走 `resolveAssetUrl()`：`/static/...` 相对路径自动拼 `STATIC_BASE_URL`，完整 URL 原样透传。
+- 展示层统一套一层 `useRemoteImage(url)`：微信基础库 3.x 开始 `<Image src="http://...">` 会被阻断（"不再支持 HTTP 协议"），hook 内部检测到 `http://` 前缀时先走 `Taro.downloadFile` 拿到 `tempFilePath` 再喂给 `<Image>`；`https://` / `wxfile://` 原样透传，所以上线 HTTPS 后无额外开销。
+- 生产打包前记得把 `apps/mobile/src/config/index.ts` 的 `PROD_API_BASE` 从 `api.momoya.example.com` 改成真实域名，否则 `resolveApiBase()` 会直接 throw。
+
+> 微信开发者工具联调：**设置 → 项目设置 → 本地设置 → 不校验合法域名**（否则 `localhost` 的 `request` / `uploadFile` / `downloadFile` 都会被拒）。
+
+### 真机预览 / 真机调试（同局域网手机连本机后端）
+
+**常见症状**：开发者工具模拟器里登录 OK，一扫码到手机就"网络请求失败"。根因固定是下面两个之一（通常两个都要解决）：
+
+1. 手机上的 `localhost` 指手机自己，不是你电脑，要让小程序请求走电脑在局域网里的 IPv4。
+2. Windows 防火墙默认阻止"公用网络"入站，3000 端口对手机不可达。
+
+**步骤 ①：查出电脑的局域网 IPv4**
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -match 'Wi-Fi|WLAN|以太网|Ethernet' } | Select-Object InterfaceAlias, IPAddress
+# 例：WLAN 10.172.8.129
+```
+
+**步骤 ②：让小程序 dev 包指向这个 IP**（通过 Taro 约定的 `TARO_APP_*` 环境变量注入，不用改代码）
+
+```powershell
+$env:TARO_APP_DEV_API_HOST = '10.172.8.129'   # 换成你自己的 IP
+pnpm --filter @momoya/mobile dev:weapp
+# 换电脑或换网络后重跑这行即可；不设置则回退到 localhost（模拟器用）
+```
+
+启动后小程序的 `app.onLaunch` 会在 console 打印 `[momoya] API_BASE_URL = ...`，可据此确认注入是否生效。
+
+**步骤 ③：在"管理员 PowerShell"里放行 3000 端口入站**（一次性，命令会持久化）
+
+```powershell
+# 放行 3000/TCP 入站，仅 Private/Domain 网络（Public 保持拒绝，安全）
+New-NetFirewallRule -DisplayName "momoya dev :3000" -Direction Inbound `
+  -LocalPort 3000 -Protocol TCP -Action Allow -Profile Private,Domain
+
+# 顺手把当前 WLAN 网络从 Public 改为 Private（否则上条规则不生效）
+Set-NetConnectionProfile -InterfaceAlias WLAN -NetworkCategory Private
+```
+
+验证：在本机浏览器打开 `http://<你的IP>:3000/api/v1/health` 能拿到 `{code:0,data:{status:'ok'}}`，手机扫码后登录页即可正常请求。
+
+**步骤 ④：微信开发者工具**
+
+- 保持勾选「不校验合法域名 / TLS 版本 / HTTPS 证书」——真机调试通道下这个开关同样生效。
+- 真机调试时点"重新编译"一次，让新的 `API_BASE_URL` 进入 vConsole。
+
+> 扫码"预览"（非真机调试）无法绕过合法域名检查、且必须 HTTPS，所以开发阶段始终走"真机调试"。
 
 ## Docker 使用
 

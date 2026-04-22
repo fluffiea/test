@@ -12,6 +12,7 @@ export const validationSchema = Joi.object({
   JWT_REFRESH_TTL: Joi.string().default('14d'),
   UPLOAD_DIR: Joi.string().default('./uploads'),
   STATIC_BASE_URL: Joi.string().uri().default('http://localhost:3000/static'),
+  UPLOAD_MAX_SIZE_BYTES: Joi.number().integer().min(1024).default(5 * 1024 * 1024),
   SWAGGER_ENABLED: Joi.string().valid('true', 'false', '1', '0', 'yes', 'no', 'on', 'off').optional(),
   SWAGGER_PATH: Joi.string().default('api/docs'),
 });

@@ -23,7 +23,17 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     plugins: [
       "@tarojs/plugin-generator"
     ],
+    // Taro 4 + Vite 默认只注入 process.env.NODE_ENV；其余 process.env.XXX 必须
+    // 在此显式声明，否则会以 `process.env.XXX` 字符串原样落进小程序包，
+    // 触发 `ReferenceError: process is not defined`。
+    // 这里把本项目用到的 TARO_APP_* 在构建期全部冻结为字符串字面量。
     defineConstants: {
+      'process.env.TARO_APP_DEV_API_HOST': JSON.stringify(
+        process.env.TARO_APP_DEV_API_HOST || ''
+      ),
+      'process.env.TARO_APP_DEV_API_PORT': JSON.stringify(
+        process.env.TARO_APP_DEV_API_PORT || ''
+      ),
     },
     copy: {
       patterns: [

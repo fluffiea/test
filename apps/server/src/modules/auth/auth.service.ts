@@ -10,7 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { parseDurationToSeconds } from '../../common/utils/duration';
 import type { AppConfig } from '../../config/configuration';
-import { UserDocument } from '../user/schemas/user.schema';
 import { UserService } from '../user/user.service';
 import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { LoginDto } from './dto/login.dto';
@@ -53,7 +52,7 @@ export class AuthService {
     const tokens = await this.issueTokenPair(String(user._id), sessionId);
     return {
       ...tokens,
-      user: this.toMe(user),
+      user: this.userService.toMe(user),
     };
   }
 
@@ -104,7 +103,7 @@ export class AuthService {
       });
     }
     await this.userService.touchOnline(userId);
-    return this.toMe(user);
+    return this.userService.toMe(user);
   }
 
   private async issueTokenPair(
@@ -144,16 +143,5 @@ export class AuthService {
       secret,
       expiresIn,
     });
-  }
-
-  private toMe(user: UserDocument): MeDto {
-    return {
-      id: String(user._id),
-      username: user.username,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      bio: user.bio,
-      partnerId: user.partnerId ? String(user.partnerId) : null,
-    };
   }
 }

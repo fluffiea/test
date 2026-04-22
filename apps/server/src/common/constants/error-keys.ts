@@ -8,6 +8,9 @@ export const ErrorKey = {
   E_FORBIDDEN: 'E_FORBIDDEN',
   E_NOT_FOUND: 'E_NOT_FOUND',
   E_CONFLICT: 'E_CONFLICT',
+  E_UPLOAD_TYPE: 'E_UPLOAD_TYPE',
+  E_UPLOAD_TOO_LARGE: 'E_UPLOAD_TOO_LARGE',
+  E_UPLOAD_MISSING: 'E_UPLOAD_MISSING',
   E_RATE_LIMIT: 'E_RATE_LIMIT',
   E_INTERNAL: 'E_INTERNAL',
 } as const;
@@ -24,6 +27,9 @@ export const ErrorCode: Record<ErrorKeyType, number> = {
   [ErrorKey.E_FORBIDDEN]: 40301,
   [ErrorKey.E_NOT_FOUND]: 40401,
   [ErrorKey.E_CONFLICT]: 40901,
+  [ErrorKey.E_UPLOAD_TYPE]: 41501,
+  [ErrorKey.E_UPLOAD_TOO_LARGE]: 41301,
+  [ErrorKey.E_UPLOAD_MISSING]: 40002,
   [ErrorKey.E_RATE_LIMIT]: 42901,
   [ErrorKey.E_INTERNAL]: 50001,
 };
@@ -34,6 +40,8 @@ export const httpStatusToErrorKey: Record<number, ErrorKeyType> = {
   403: ErrorKey.E_FORBIDDEN,
   404: ErrorKey.E_NOT_FOUND,
   409: ErrorKey.E_CONFLICT,
+  413: ErrorKey.E_UPLOAD_TOO_LARGE,
+  415: ErrorKey.E_UPLOAD_TYPE,
   429: ErrorKey.E_RATE_LIMIT,
   500: ErrorKey.E_INTERNAL,
 };

@@ -1,6 +1,8 @@
 import { Button, Image, Text, View } from '@tarojs/components'
-import Taro, { useDidShow, useLoad } from '@tarojs/taro'
-import { useEffect, useState } from 'react'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { useEffect, useMemo, useState } from 'react'
+import { resolveAssetUrl } from '../../config'
+import { useRemoteImage } from '../../hooks/useRemoteImage'
 import { authApi } from '../../services/auth'
 import { ApiError } from '../../services/request'
 import { useAuthStore } from '../../store/authStore'
@@ -35,9 +37,14 @@ export default function Me() {
     }
   }
 
-  useLoad(loadMe)
+  // useDidShow 覆盖"首次进入"与"从其他页返回 / 小程序前后台切换回前台"三种时机，
+  // 每次都 revalidate 一次 session：
+  // - 被其他设备挤下线时，这里会拿到 401 + E_SESSION_KICKED，
+  //   request 拦截器负责 reLaunch 到登录页。
+  // - 也顺便让昵称/头像等与最新数据对齐。
   useDidShow(() => {
     if (!ensureAuthed()) return
+    void loadMe()
   })
 
   useEffect(() => {
@@ -45,6 +52,10 @@ export default function Me() {
       Taro.reLaunch({ url: '/pages/login/index' })
     }
   }, [])
+
+  const handleEditProfile = () => {
+    Taro.navigateTo({ url: '/pages/me/edit-profile/index' })
+  }
 
   const handleChangePassword = () => {
     Taro.navigateTo({ url: '/pages/me/change-password/index' })
@@ -71,17 +82,18 @@ export default function Me() {
   const nickname = user?.nickname ?? '未登录'
   const username = user?.username ?? ''
   const bio = user?.bio || '还没有签名，快去写点什么～'
+  const avatarUrl = useMemo(() => resolveAssetUrl(user?.avatar), [user?.avatar])
+  const avatarSrc = useRemoteImage(avatarUrl)
 
   return (
     <View className="flex min-h-screen flex-col bg-pink-50 px-6 pt-10">
       <View className="flex flex-col items-center">
-        <View className="h-24 w-24 overflow-hidden rounded-full border-4 border-pink-200 bg-white">
-          {user?.avatar ? (
-            <Image
-              src={user.avatar.startsWith('http') ? user.avatar : `http://localhost:3000${user.avatar}`}
-              className="h-full w-full"
-              mode="aspectFill"
-            />
+        <View
+          className="h-24 w-24 overflow-hidden rounded-full border-4 border-pink-200 bg-white"
+          onClick={handleEditProfile}
+        >
+          {avatarSrc ? (
+            <Image src={avatarSrc} className="h-full w-full" mode="aspectFill" />
           ) : (
             <View className="flex h-full w-full items-center justify-center text-3xl text-pink-300">
               <Text>♡</Text>
@@ -94,6 +106,14 @@ export default function Me() {
       </View>
 
       <View className="mt-10 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+        <View
+          className="flex items-center justify-between py-3"
+          onClick={handleEditProfile}
+        >
+          <Text className="text-base text-gray-700">编辑资料</Text>
+          <Text className="text-gray-300">›</Text>
+        </View>
+        <View className="h-px bg-gray-100" />
         <View
           className="flex items-center justify-between py-3"
           onClick={handleChangePassword}
@@ -116,7 +136,7 @@ export default function Me() {
       </Button>
 
       <View className="mt-6 flex items-center justify-center pb-10">
-        <Text className="text-xs text-pink-300">momoya · M2 auth ready</Text>
+        <Text className="text-xs text-pink-300">momoya · M3 profile ready</Text>
       </View>
     </View>
   )

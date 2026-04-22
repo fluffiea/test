@@ -14,7 +14,7 @@ export class User {
   @Prop({ type: String, required: true })
   nickname!: string;
 
-  @Prop({ type: String, default: '/static/default-avatar.png' })
+  @Prop({ type: String, default: '' })
   avatar!: string;
 
   @Prop({ type: String, default: '' })

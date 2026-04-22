@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { UserModule } from '../user/user.module';
@@ -11,7 +11,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 
 @Module({
   imports: [
-    UserModule,
+    forwardRef(() => UserModule),
     PassportModule,
     // secret / expiresIn 在 AuthService 调用 signAsync 时按 token 类型显式传入。
     JwtModule.register({}),

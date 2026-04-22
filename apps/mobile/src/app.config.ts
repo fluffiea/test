@@ -3,6 +3,7 @@ export default defineAppConfig({
     'pages/me/index',
     'pages/login/index',
     'pages/me/change-password/index',
+    'pages/me/edit-profile/index',
     'pages/index/index',
   ],
   window: {

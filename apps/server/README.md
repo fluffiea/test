@@ -107,8 +107,9 @@ src/
 ├── config/                     ConfigModule 配置（含 Joi 校验）
 ├── modules/
 │   ├── health/                 健康检查
-│   ├── user/                   用户 schema 与基础仓储服务（M1）
-│   └── auth/                   登录鉴权（M2）：JWT access+refresh、严格单设备挤占
+│   ├── user/                   用户 schema / 服务 / 资料编辑（M1+M3）
+│   ├── auth/                   登录鉴权（M2）：JWT access+refresh、严格单设备挤占
+│   └── upload/                 图片上传（M3）：multer diskStorage + 白名单校验
 └── seed/                       OnApplicationBootstrap 种子数据
 ```
 
@@ -152,6 +153,55 @@ Invoke-RestMethod -Method Post -Uri "$base/auth/refresh" -ContentType "applicati
   -Body (@{ refreshToken = $rt } | ConvertTo-Json)
 ```
 
+## M3 资料编辑 + 图片上传
+
+接口清单：
+
+| 方法  | 路径              | 鉴权     | 说明                                            |
+|-------|-------------------|----------|-------------------------------------------------|
+| POST  | `/upload/image`   | access   | multipart/form-data，字段名 `file`；jpeg/png/webp ≤ 5MB |
+| PATCH | `/users/me`       | access   | 部分更新 `nickname` / `bio` / `avatar` 三字段    |
+
+- 上传成功返回 `{ url, absoluteUrl, mimeType, size }`；`url` 是 `/static/年/月/<uuid>.<ext>` 相对路径，可直接作为 `PATCH /users/me` 的 `avatar` 值。
+- 静态资源由 `@nestjs/serve-static` 挂载在 `/static/*`（`UPLOAD_DIR` 对外的公共入口），在全局前缀之外（`setGlobalPrefix(..., { exclude: ['static', 'static/(.*)'] })`）。
+- 上传错误语义：
+  - `E_UPLOAD_TYPE` (41501) · HTTP 415 · MIME 不在白名单
+  - `E_UPLOAD_TOO_LARGE` (41301) · HTTP 413 · 单文件超过 `UPLOAD_MAX_SIZE_BYTES`
+  - `E_UPLOAD_MISSING` (40002) · HTTP 400 · 字段名不是 `file`
+- `PATCH /users/me` 严格白名单：其它字段（含 `username` / `partnerId`）会被 `ValidationPipe` 拒绝，返回 `E_VALIDATION`。`avatar` 必须匹配 `^(\/static\/|https?:\/\/)`，防止前端塞入 `data:` / `file://` 这类路径。
+- 单独限流：`POST /upload/image` 用 `@Throttle({ default: { ttl: 60_000, limit: 20 } })` 收紧到 20 次/分钟。
+
+### M3 冒烟脚本
+
+```powershell
+$base = 'http://localhost:3000/api/v1'
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
+  -Body (@{ username = 'jiangjiang'; password = '251212' } | ConvertTo-Json)
+$at = $login.data.accessToken
+
+# 造一个最小合法 PNG
+$png = [byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A,0x00,0x00,0x00,0x0D,0x49,0x48,0x44,0x52,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0x1F,0x15,0xC4,0x89,0x00,0x00,0x00,0x0D,0x49,0x44,0x41,0x54,0x78,0x9C,0x63,0xF8,0xCF,0xC0,0x00,0x00,0x00,0x03,0x00,0x01,0x72,0xD8,0x55,0xE1,0x00,0x00,0x00,0x00,0x49,0x45,0x4E,0x44,0xAE,0x42,0x60,0x82)
+$p = Join-Path $env:TEMP ('avatar-' + [guid]::NewGuid() + '.png')
+[IO.File]::WriteAllBytes($p, $png)
+
+# 上传
+$upload = curl.exe -s -X POST "$base/upload/image" -H "Authorization: Bearer $at" -F "file=@$p;type=image/png" | ConvertFrom-Json
+$avatarUrl = $upload.data.url
+
+# 更新
+Invoke-RestMethod -Method Patch -Uri "$base/users/me" -ContentType 'application/json' `
+  -Headers @{ Authorization = "Bearer $at" } `
+  -Body (@{ nickname = '新匠匠'; bio = '今天好'; avatar = $avatarUrl } | ConvertTo-Json)
+
+# 读回
+Invoke-RestMethod -Uri "$base/auth/me" -Headers @{ Authorization = "Bearer $at" }
+
+# 直接读静态资源
+Invoke-WebRequest -UseBasicParsing -Uri ('http://localhost:3000' + $avatarUrl) | Select-Object StatusCode, RawContentLength
+
+Remove-Item $p
+```
+
 ## 统一响应约定
 
 - 成功：`{ code: 0, data, msg: 'ok' }`
@@ -166,8 +216,9 @@ Invoke-RestMethod -Method Post -Uri "$base/auth/refresh" -ContentType "applicati
 - `JWT_ACCESS_SECRET` / `JWT_ACCESS_TTL`（默认 `2h`）
 - `JWT_REFRESH_SECRET` / `JWT_REFRESH_TTL`（默认 `14d`）
   - **access / refresh 两个 secret 必须不同**，至少 32 字节随机串；否则 refresh token 可以被直接拿去打业务接口，会绕过 TTL 策略。
-
-`UPLOAD_*` 会在 M3 静态资源相关里才生效。
+- `UPLOAD_DIR`（默认 `./uploads`）：上传文件的根目录；启动时若不存在会自动创建。生产 Docker 挂 `server-uploads` 命名卷。
+- `UPLOAD_MAX_SIZE_BYTES`（默认 `5242880` = 5MB）：单张图片大小上限。
+- `STATIC_BASE_URL`（默认 `http://localhost:3000/static`）：拼给前端的绝对 URL 前缀；线上要改成对外真实域名（比如 `https://cdn.momoya.app/static`）。
 
 ## Docker 生产镜像
 
