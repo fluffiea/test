@@ -1,8 +1,12 @@
 import Taro from '@tarojs/taro'
+import {
+  ErrorKey,
+  type ErrorKeyType,
+  isSessionFatal,
+  type UploadImageResultDto,
+} from '@momoya/shared'
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from '../config'
-import { ErrorKey, ErrorKeyType, isSessionFatal } from '../constants/error-keys'
 import { useAuthStore } from '../store/authStore'
-import type { UploadImageResult } from '../types/upload'
 import { ApiError } from './request'
 import type { ApiResponseWrapper } from './request'
 
@@ -13,7 +17,7 @@ import type { ApiResponseWrapper } from './request'
  */
 export async function uploadImage(
   filePath: string,
-): Promise<UploadImageResult> {
+): Promise<UploadImageResultDto> {
   const token = useAuthStore.getState().accessToken
   if (!token) {
     throw new ApiError(40102, '未登录', ErrorKey.E_AUTH_REQUIRED, 401)
@@ -33,12 +37,12 @@ export async function uploadImage(
     throw new ApiError(-1, msg, undefined, 0)
   }
 
-  let parsed: ApiResponseWrapper<UploadImageResult> | undefined
+  let parsed: ApiResponseWrapper<UploadImageResultDto> | undefined
   try {
     parsed =
       typeof resp.data === 'string'
-        ? (JSON.parse(resp.data) as ApiResponseWrapper<UploadImageResult>)
-        : (resp.data as ApiResponseWrapper<UploadImageResult>)
+        ? (JSON.parse(resp.data) as ApiResponseWrapper<UploadImageResultDto>)
+        : (resp.data as ApiResponseWrapper<UploadImageResultDto>)
   } catch {
     throw new ApiError(-1, '服务端响应解析失败', undefined, resp.statusCode)
   }

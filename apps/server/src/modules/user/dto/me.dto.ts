@@ -1,7 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { MeDto as MeShape } from '@momoya/shared';
 
-/** 当前登录用户的基本信息，`GET /auth/me`、`PATCH /users/me` 都返回这个结构。 */
-export class MeDto {
+/**
+ * 当前登录用户的基本信息，`GET /auth/me`、`PATCH /users/me` 都返回这个结构。
+ * 字段形状由 `@momoya/shared` 的 `MeDto` 接口约束，保证前后端类型一致。
+ */
+export class MeDto implements MeShape {
   @ApiProperty({ example: '65f1c2e4a1b2c3d4e5f67890', description: '用户 ObjectId 字符串' })
   id!: string;
 

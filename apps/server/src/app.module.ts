@@ -10,6 +10,7 @@ import configuration, { type AppConfig } from './config/configuration';
 import { validationSchema } from './config/validation.schema';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { MomentModule } from './modules/moment/moment.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserModule } from './modules/user/user.module';
 import { SeedModule } from './seed/seed.module';
@@ -72,6 +73,7 @@ import { SeedModule } from './seed/seed.module';
     UserModule,
     AuthModule,
     UploadModule,
+    MomentModule,
     HealthModule,
     SeedModule,
   ],

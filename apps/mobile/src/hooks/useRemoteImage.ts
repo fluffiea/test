@@ -8,8 +8,10 @@ import { useEffect, useState } from 'react'
  * `wxfile://...` 形式的临时路径，可以直接作为 `<Image>` 的 src。
  *
  * 本 hook：
- * - 对 `http://` 的 URL 走一次 `downloadFile`，返回 tempFilePath；
- * - 对 `https://` / `wxfile://` / 本地 `http://tmp/` / `data:` 和空串：原样透传；
+ * - 对 `http://` 开头的外部 URL 走一次 `downloadFile`，返回 tempFilePath；
+ * - 对 `https://` / `wxfile://` / `data:` 等自身已合规的协议：原样透传；
+ * - 另外对旧版 iOS 微信出现过的 `http://tmp/` / `http://usr/` 形式的 tempFilePath
+ *   做一次防御：即使被当作 URL 再传进来也不会触发二次下载；
  * - 进程内缓存同 URL 的 tempFilePath 避免重复下载；
  * - 组件卸载时取消结果回写。
  *

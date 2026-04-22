@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { BCRYPT_ROUNDS } from '../../common/constants/crypto';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { parseDurationToSeconds } from '../../common/utils/duration';
 import type { AppConfig } from '../../config/configuration';
@@ -20,8 +21,6 @@ import type {
   TokenPairDto,
 } from './dto/token-pair.dto';
 import type { JwtPayload, JwtTokenType } from './types/jwt-payload';
-
-const BCRYPT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {

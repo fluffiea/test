@@ -1,15 +1,13 @@
 import { Button, Form, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useMemo, useState } from 'react'
-import { resolveAssetUrl, UPLOAD_MAX_SIZE_BYTES } from '../../../config'
+import { BIO_MAX, NICKNAME_MAX, UPLOAD_MAX_SIZE_BYTES } from '@momoya/shared'
+import { resolveAssetUrl } from '../../../config'
 import { useRemoteImage } from '../../../hooks/useRemoteImage'
 import { ApiError } from '../../../services/request'
 import { uploadImage } from '../../../services/upload'
 import { userApi } from '../../../services/user'
 import { useAuthStore } from '../../../store/authStore'
-
-const NICKNAME_MAX = 20
-const BIO_MAX = 100
 
 export default function EditProfile() {
   const user = useAuthStore((s) => s.user)

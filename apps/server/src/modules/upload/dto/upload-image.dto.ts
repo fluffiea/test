@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { UploadImageResultDto as UploadImageResultShape } from '@momoya/shared';
 
 /**
  * multipart/form-data 里的 file 字段，仅用于 Swagger 展示。
@@ -13,7 +14,7 @@ export class UploadImageBodyDto {
   file!: unknown;
 }
 
-export class UploadImageResultDto {
+export class UploadImageResultDto implements UploadImageResultShape {
   @ApiProperty({
     example: '/static/2026/04/3f3b8b9a-6e6e-4c6d-9e2d-8f9c7b1d3a0c.webp',
     description: '相对路径（挂在 STATIC_BASE_URL 下对外暴露）',

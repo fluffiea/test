@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Patch,
@@ -16,10 +17,12 @@ import {
 } from '@nestjs/swagger';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { ApiResponseOf } from '../../common/dto/api-response.dto';
+import { toIsoString } from '../../common/utils/date';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import type { AuthUser } from '../auth/types/jwt-payload';
 import { MeDto } from './dto/me.dto';
+import { PartnerBriefDto } from './dto/partner.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UserService } from './user.service';
 
@@ -51,5 +54,35 @@ export class UserController {
       });
     }
     return this.userService.toMe(updated);
+  }
+
+  @Get('partner')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: '获取当前用户的 partner 简要信息',
+    description: '用于时间轴顶部的「双人关系卡片」。未绑定 partner 返回 null。',
+  })
+  @ApiOkResponse({ type: ApiResponseOf(PartnerBriefDto) })
+  async getPartner(@CurrentUser() auth: AuthUser): Promise<PartnerBriefDto | null> {
+    const me = await this.userService.findById(auth.userId);
+    if (!me) {
+      throw new UnauthorizedException({
+        message: '用户不存在',
+        errorKey: ErrorKey.E_AUTH_INVALID,
+      });
+    }
+    if (!me.partnerId) return null;
+    const partner = await this.userService.findById(me.partnerId);
+    if (!partner) return null;
+    // Mongoose `timestamps: true` 自动维护 createdAt；文档上无 @Prop 声明，用 unknown 透传 + toIsoString 收敛。
+    const createdAt: unknown = (partner as unknown as { createdAt?: unknown }).createdAt;
+    return {
+      id: String(partner._id),
+      username: partner.username,
+      nickname: partner.nickname,
+      avatar: partner.avatar,
+      createdAt: toIsoString(createdAt),
+    };
   }
 }

@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import type { LoginInputDto } from '@momoya/shared';
+import { PASSWORD_MAX, PASSWORD_MIN } from '@momoya/shared';
 
-export class LoginDto {
+export class LoginDto implements LoginInputDto {
   @ApiProperty({
     example: 'jiangjiang',
     description: '用户名，3-32 位字母/数字/下划线',
@@ -16,12 +18,12 @@ export class LoginDto {
 
   @ApiProperty({
     example: '251212',
-    description: '明文密码，长度 6-64',
-    minLength: 6,
-    maxLength: 64,
+    description: `明文密码，长度 ${PASSWORD_MIN}-${PASSWORD_MAX}`,
+    minLength: PASSWORD_MIN,
+    maxLength: PASSWORD_MAX,
   })
   @IsString()
-  @MinLength(6)
-  @MaxLength(64)
+  @MinLength(PASSWORD_MIN)
+  @MaxLength(PASSWORD_MAX)
   password!: string;
 }

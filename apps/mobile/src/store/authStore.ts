@@ -1,6 +1,6 @@
 import { create } from 'zustand'
+import type { MeDto, TokenPairDto } from '@momoya/shared'
 import { clearAuthStorage, readStorage, StorageKey, writeStorage } from '../services/storage'
-import type { MeDto, TokenPair } from '../types/auth'
 
 interface AuthState {
   accessToken: string | null
@@ -10,9 +10,9 @@ interface AuthState {
   hydrated: boolean
 
   hydrate: () => void
-  setTokens: (tokens: TokenPair) => void
+  setTokens: (tokens: TokenPairDto) => void
   setUser: (user: MeDto) => void
-  login: (payload: TokenPair & { user: MeDto }) => void
+  login: (payload: TokenPairDto & { user: MeDto }) => void
   logout: () => void
   isAuthed: () => boolean
 }

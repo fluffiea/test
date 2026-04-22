@@ -1,8 +1,12 @@
 import Taro from '@tarojs/taro'
+import {
+  ErrorKey,
+  type ErrorKeyType,
+  isSessionFatal,
+  type TokenPairDto,
+} from '@momoya/shared'
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from '../config'
-import { ErrorKey, ErrorKeyType, isSessionFatal } from '../constants/error-keys'
 import { useAuthStore } from '../store/authStore'
-import type { TokenPair } from '../types/auth'
 
 /** 后端统一响应外壳。 */
 export interface ApiResponseWrapper<T> {
@@ -85,7 +89,7 @@ async function doRefreshOnce(): Promise<void> {
     if (!refreshToken) {
       throw new ApiError(40102, '未登录', ErrorKey.E_AUTH_REQUIRED, 401)
     }
-    const tokens = await rawRequest<TokenPair>('/auth/refresh', {
+    const tokens = await rawRequest<TokenPairDto>('/auth/refresh', {
       method: 'POST',
       data: { refreshToken },
       skipAuth: true,
@@ -161,4 +165,6 @@ export const api = {
     data?: unknown,
     opts?: Omit<RequestOptions, 'method' | 'data'>,
   ) => apiRequest<T>(url, { ...opts, method: 'PATCH', data }),
+  delete: <T,>(url: string, opts?: Omit<RequestOptions, 'method' | 'data'>) =>
+    apiRequest<T>(url, { ...opts, method: 'DELETE' }),
 }

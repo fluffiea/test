@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import { BCRYPT_ROUNDS } from '../common/constants/crypto';
 import { User, UserDocument } from '../modules/user/schemas/user.schema';
 
 interface SeedUser {
@@ -13,8 +14,6 @@ const INITIAL_USERS: SeedUser[] = [
   { username: 'jiangjiang', password: '251212' },
   { username: 'mengmeng', password: '251212' },
 ];
-
-const BCRYPT_ROUNDS = 10;
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {

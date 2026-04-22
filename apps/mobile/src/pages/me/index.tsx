@@ -1,6 +1,6 @@
 import { Button, Image, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { resolveAssetUrl } from '../../config'
 import { useRemoteImage } from '../../hooks/useRemoteImage'
 import { authApi } from '../../services/auth'
@@ -46,12 +46,6 @@ export default function Me() {
     if (!ensureAuthed()) return
     void loadMe()
   })
-
-  useEffect(() => {
-    if (!useAuthStore.getState().isAuthed()) {
-      Taro.reLaunch({ url: '/pages/login/index' })
-    }
-  }, [])
 
   const handleEditProfile = () => {
     Taro.navigateTo({ url: '/pages/me/edit-profile/index' })
@@ -136,7 +130,7 @@ export default function Me() {
       </Button>
 
       <View className="mt-6 flex items-center justify-center pb-10">
-        <Text className="text-xs text-pink-300">momoya · M3 profile ready</Text>
+        <Text className="text-xs text-pink-300">momoya · M4 timeline ready</Text>
       </View>
     </View>
   )

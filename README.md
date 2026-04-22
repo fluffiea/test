@@ -5,7 +5,7 @@
 - `apps/server`：NestJS 11 服务端（MongoDB + Socket.io，当前进度 M2 登录体系）
 - `apps/mobile`：Taro 4.2（Vite）+ React 18 + Tailwind v4 + weapp-tailwindcss + Zustand
 
-当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）· **M3 资料编辑 + 图片上传基建**。
+当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）· **M3 资料编辑 + 图片上传基建** · **M4 日常时间轴**（发布 / 二人共享列表 / 游标分页 / 软删）。
 
 ## 快速开始
 
@@ -131,6 +131,29 @@ Set-NetConnectionProfile -InterfaceAlias WLAN -NetworkCategory Private
 - 真机调试时点"重新编译"一次，让新的 `API_BASE_URL` 进入 vConsole。
 
 > 扫码"预览"（非真机调试）无法绕过合法域名检查、且必须 HTTPS，所以开发阶段始终走"真机调试"。
+
+## M4 验收
+
+**数据模型**：新增 `moments` 集合，字段 `authorId / text / images[] / deletedAt / createdAt / updatedAt`。不引入 coupleId：双人可见通过 `authorId ∈ {me, partnerId}` 过滤；删除走软删 `deletedAt`。索引 `{ authorId:1, createdAt:-1 }` 与 `{ createdAt:-1, _id:-1 }`。
+
+**后端接口**（Swagger 分组：`日常动态`）：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST` | `/moments` | 发布一条（`text` ≤500、`images` ≤9，至少一项非空；限流 20/min） |
+| `GET` | `/moments?cursor=<ts_id>&limit=20` | 按 `(createdAt, _id)` 倒序游标分页，仅返回 `authorId ∈ {me, partnerId}` |
+| `DELETE` | `/moments/:id` | 软删；非本人 → `E_MOMENT_FORBIDDEN (40304)`；不存在 → `E_MOMENT_NOT_FOUND (40404)` |
+| `GET` | `/users/partner` | 返回当前用户 partner 的 `{id, username, nickname, avatar, createdAt}`；未绑定返回 `null`，供首页"双人关系卡片"用 |
+
+**后端冒烟**：`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-m4.ps1` 会依次覆盖：jiangjiang/mengmeng 互发、互相可见、cursor 分页、text/images 双空、text 超长、images 非法 URL、删除他人、删除自己、软删后不再出现，全部绿灯。
+
+**小程序**：
+
+- `pnpm --filter @momoya/mobile build:weapp` 产出 `pages/index/index`、`pages/moments/publish/index` 两个新页，冷启动入口切换到时间轴（`app.config.ts` 加了原生 `tabBar`：日常 / 我的）。
+- 时间轴页顶部是「双人关系卡片」（双头像 + 昵称 + "在一起 N 天"，N 以 partner 账号创建日到今天计，未绑定 partner 显示 `—`）。下方是滚动列表，`ScrollView` + `onScrollToLower` 自动拉下一页；长按自己发的条目可删除（`showActionSheet` → `showModal` 两步确认）；右下角悬浮 `+` 跳转发布页。
+- 发布页支持 `textarea`（500）+ 图片网格（最多 9 张，单张 ≤ 5MB）；选图后并行上传，每个 slot 独立显示「上传中 / 失败 / 删除」状态；发布成功后走 `momentStore.prepend()` 塞到列表顶并 `navigateBack()`，无需重拉。
+- 图片统一 `resolveAssetUrl` + `useRemoteImage`：列表缩略图、大图预览都过这条通道，继承 M3 的 HTTP → `downloadFile` 兜底。
+- `request.ts` 新增 `api.delete`；`momentStore` 是独立 Zustand store，登录切账号 / 登出时会 `reset()` 清空避免串数据。
 
 ## Docker 使用
 

@@ -4,9 +4,12 @@
   "version": "1.0.0",
   "description": "Momoya Monorepo Project",
   "scripts": {
+    "build:shared": "pnpm --filter @momoya/shared build",
+    "dev:shared": "pnpm --filter @momoya/shared dev",
     "dev:weapp": "pnpm --filter @momoya/mobile dev:weapp",
     "dev:server": "pnpm --filter @momoya/server start:dev",
-    "dev": "concurrently -n \"Taro,Nest\" -c \"blue,green\" \"pnpm dev:weapp\" \"pnpm dev:server\"",
+    "dev": "concurrently -n \"Shared,Taro,Nest\" -c \"yellow,blue,green\" \"pnpm dev:shared\" \"pnpm dev:weapp\" \"pnpm dev:server\"",
+    "postinstall": "pnpm build:shared",
     "docker:dev:up": "docker compose up -d",
     "docker:dev:down": "docker compose down",
     "docker:dev:logs": "docker compose logs -f",

@@ -2,14 +2,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ALLOWED_IMAGE_MIME } from '@momoya/shared';
 import type { AppConfig } from '../../config/configuration';
 
-/** 允许上传的图片 MIME 白名单（jpeg/png/webp 足够覆盖头像 & moments）。 */
-export const ALLOWED_IMAGE_MIME = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-] as const;
+/** 从 shared 重新导出，保持旧引入路径可用（upload.module.ts 在用）。 */
+export { ALLOWED_IMAGE_MIME };
 
 @Injectable()
 export class UploadService {

@@ -19,6 +19,20 @@ export class UserService {
     return this.userModel.findById(id).exec();
   }
 
+  /**
+   * 批量取用户的公开基本信息（id/username/nickname/avatar），
+   * 用于其他模块（如 Moments 列表）填充作者信息，避免每条 moment 单独查一次。
+   */
+  findManyBrief(ids: ReadonlyArray<string | Types.ObjectId>) {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.userModel
+      .find(
+        { _id: { $in: ids as (string | Types.ObjectId)[] } },
+        { _id: 1, username: 1, nickname: 1, avatar: 1, createdAt: 1 },
+      )
+      .exec();
+  }
+
   countAll() {
     return this.userModel.estimatedDocumentCount().exec();
   }

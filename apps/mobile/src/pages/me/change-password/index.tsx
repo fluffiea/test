@@ -1,7 +1,7 @@
 import { Button, Form, Input, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState } from 'react'
-import { ErrorKey } from '../../../constants/error-keys'
+import { ErrorKey, PASSWORD_MIN } from '@momoya/shared'
 import { authApi } from '../../../services/auth'
 import { ApiError } from '../../../services/request'
 import { useAuthStore } from '../../../store/authStore'
@@ -15,8 +15,8 @@ export default function ChangePassword() {
   const setTokens = useAuthStore((s) => s.setTokens)
 
   const validate = (): string | null => {
-    if (oldPassword.length < 6) return '旧密码至少 6 位'
-    if (newPassword.length < 6) return '新密码至少 6 位'
+    if (oldPassword.length < PASSWORD_MIN) return `旧密码至少 ${PASSWORD_MIN} 位`
+    if (newPassword.length < PASSWORD_MIN) return `新密码至少 ${PASSWORD_MIN} 位`
     if (newPassword === oldPassword) return '新密码不能与旧密码相同'
     if (newPassword !== confirmPassword) return '两次输入的新密码不一致'
     return null

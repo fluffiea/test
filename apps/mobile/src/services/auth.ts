@@ -1,21 +1,21 @@
-import { api } from './request'
 import type {
-  ChangePasswordInput,
-  ChangePasswordResult,
-  LoginInput,
-  LoginResult,
-  LogoutResult,
+  ChangePasswordInputDto,
+  ChangePasswordResultDto,
+  LoginInputDto,
+  LoginResultDto,
+  LogoutResultDto,
   MeDto,
-} from '../types/auth'
+} from '@momoya/shared'
+import { api } from './request'
 
 export const authApi = {
-  login: (input: LoginInput) =>
-    api.post<LoginResult>('/auth/login', input, { skipAuth: true }),
+  login: (input: LoginInputDto) =>
+    api.post<LoginResultDto>('/auth/login', input, { skipAuth: true }),
 
   getMe: () => api.get<MeDto>('/auth/me'),
 
-  changePassword: (input: ChangePasswordInput) =>
-    api.post<ChangePasswordResult>('/auth/change-password', input),
+  changePassword: (input: ChangePasswordInputDto) =>
+    api.post<ChangePasswordResultDto>('/auth/change-password', input),
 
-  logout: () => api.post<LogoutResult>('/auth/logout'),
+  logout: () => api.post<LogoutResultDto>('/auth/logout'),
 }

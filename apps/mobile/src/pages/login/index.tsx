@@ -1,6 +1,7 @@
 import { Button, Form, Input, Text, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useState } from 'react'
+import { PASSWORD_MIN } from '@momoya/shared'
 import { ApiError } from '../../services/request'
 import { authApi } from '../../services/auth'
 import { useAuthStore } from '../../store/authStore'
@@ -13,7 +14,7 @@ export default function Login() {
 
   useLoad(() => {
     if (useAuthStore.getState().isAuthed()) {
-      Taro.reLaunch({ url: '/pages/me/index' })
+      Taro.reLaunch({ url: '/pages/index/index' })
     }
   })
 
@@ -24,8 +25,8 @@ export default function Login() {
       Taro.showToast({ title: '用户名至少 3 位', icon: 'none' })
       return
     }
-    if (p.length < 6) {
-      Taro.showToast({ title: '密码至少 6 位', icon: 'none' })
+    if (p.length < PASSWORD_MIN) {
+      Taro.showToast({ title: `密码至少 ${PASSWORD_MIN} 位`, icon: 'none' })
       return
     }
 
@@ -43,7 +44,7 @@ export default function Login() {
       Taro.hideLoading()
       Taro.showToast({ title: `欢迎，${result.user.nickname}`, icon: 'success' })
       setTimeout(() => {
-        Taro.reLaunch({ url: '/pages/me/index' })
+        Taro.reLaunch({ url: '/pages/index/index' })
       }, 600)
     } catch (err) {
       Taro.hideLoading()
