@@ -1,0 +1,60 @@
+name: momoya-prod
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: momoya-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env.docker}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env.docker}
+      MONGO_INITDB_DATABASE: momoya
+      MOMOYA_APP_USERNAME: ${MOMOYA_APP_USERNAME:?set MOMOYA_APP_USERNAME in .env.docker}
+      MOMOYA_APP_PASSWORD: ${MOMOYA_APP_PASSWORD:?set MOMOYA_APP_PASSWORD in .env.docker}
+    volumes:
+      - mongo-prod-data:/data/db
+      - ./docker/mongo-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - momoya
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  server:
+    image: momoya-server:${MOMOYA_SERVER_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: momoya-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      MONGODB_URI: mongodb://${MOMOYA_APP_USERNAME}:${MOMOYA_APP_PASSWORD}@mongo:27017/momoya?authSource=momoya
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env.docker}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-2h}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-14d}
+      UPLOAD_DIR: /app/uploads
+      STATIC_BASE_URL: ${STATIC_BASE_URL:-http://localhost:3000/static}
+    volumes:
+      - server-uploads:/app/uploads
+    ports:
+      - "${SERVER_PORT:-3000}:3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - momoya
+
+volumes:
+  mongo-prod-data:
+    driver: local
+  server-uploads:
+    driver: local
+
+networks:
+  momoya:
+    driver: bridge

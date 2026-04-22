@@ -6,7 +6,16 @@
   "scripts": {
     "dev:weapp": "pnpm --filter @momoya/mobile dev:weapp",
     "dev:server": "pnpm --filter @momoya/server start:dev",
-    "dev": "concurrently -n \"Taro,Nest\" -c \"blue,green\" \"pnpm dev:weapp\" \"pnpm dev:server\""
+    "dev": "concurrently -n \"Taro,Nest\" -c \"blue,green\" \"pnpm dev:weapp\" \"pnpm dev:server\"",
+    "docker:dev:up": "docker compose up -d",
+    "docker:dev:down": "docker compose down",
+    "docker:dev:logs": "docker compose logs -f",
+    "docker:dev:reset": "docker compose down -v",
+    "docker:prod:build": "docker compose --env-file .env.docker -f docker-compose.prod.yml build",
+    "docker:prod:up": "docker compose --env-file .env.docker -f docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker compose --env-file .env.docker -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose --env-file .env.docker -f docker-compose.prod.yml logs -f",
+    "docker:prod:restart": "docker compose --env-file .env.docker -f docker-compose.prod.yml restart server"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +23,20 @@
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@parcel/watcher",
+      "@swc/core",
+      "@tarojs/binding",
+      "@tarojs/cli",
+      "bcrypt",
+      "core-js",
+      "core-js-pure",
+      "esbuild",
+      "unrs-resolver",
+      "weapp-tailwindcss"
+    ]
   }
 }
