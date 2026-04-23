@@ -3,6 +3,10 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Connection, Model } from 'mongoose';
 import { BCRYPT_ROUNDS } from '../common/constants/crypto';
+import {
+  AnniversaryService,
+  makeCoupleKey,
+} from '../modules/anniversary/anniversary.service';
 import { Post, PostDocument } from '../modules/post/schemas/post.schema';
 import { User, UserDocument } from '../modules/user/schemas/user.schema';
 
@@ -24,12 +28,14 @@ export class SeedService implements OnApplicationBootstrap {
     @InjectConnection() private readonly connection: Connection,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Post.name) private readonly postModel: Model<PostDocument>,
+    private readonly anniversaryService: AnniversaryService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     await this.dropLegacyMomentsCollection();
     const users = await this.seedUsers();
     await this.seedSamplePosts(users);
+    await this.seedSystemAnniversary(users);
   }
 
   /**
@@ -118,5 +124,25 @@ export class SeedService implements OnApplicationBootstrap {
     ]);
 
     this.logger.log('[seed] inserted sample posts (2 daily + 1 report)');
+  }
+
+  /**
+   * 为已绑定的 couple 幂等注入「在一起」system 纪念日。
+   * 日期兜底取两人中较早的 createdAt（一般是 jiangjiang），作为他们"在一起"的默认日。
+   * 已存在则跳过；service 层本身也做幂等，双保险。
+   */
+  private async seedSystemAnniversary(users: UserDocument[]): Promise<void> {
+    if (users.length < 2) return;
+    const [a, b] = users;
+    if (!a.partnerId || !b.partnerId) return;
+
+    const coupleKey = makeCoupleKey(String(a._id), String(b._id));
+    // timestamps 自动字段没被 @Prop 声明，TS 上只能窄到 unknown；运行期是 Date
+    const extract = (u: UserDocument): Date | undefined => {
+      const ts = (u as unknown as { createdAt?: unknown }).createdAt;
+      return ts instanceof Date ? ts : undefined;
+    };
+    const fallback = extract(a) ?? extract(b) ?? new Date();
+    await this.anniversaryService.ensureSystemTogether(coupleKey, fallback);
   }
 }

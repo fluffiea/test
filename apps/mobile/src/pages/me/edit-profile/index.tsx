@@ -9,15 +9,27 @@ import { uploadImage } from '../../../services/upload'
 import { userApi } from '../../../services/user'
 import { useAuthStore } from '../../../store/authStore'
 
+const px = (n: number) => Taro.pxTransform(n)
+
+const INPUT_INNER_STYLE = {
+  paddingLeft: px(32),
+  paddingRight: px(32),
+  height: px(96),
+  fontSize: px(32),
+  lineHeight: px(96),
+  color: '#4A6670',
+} as const
+
+const PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:16px;line-height:48px;'
+const TEXTAREA_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:16px;'
+
 export default function EditProfile() {
   const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
 
   const [nickname, setNickname] = useState(user?.nickname ?? '')
   const [bio, setBio] = useState(user?.bio ?? '')
-  // avatar 始终存"服务器侧 URL（/static/... 或 http(s)://）"，不存本地临时 path
   const [avatar, setAvatar] = useState(user?.avatar ?? '')
-  // 本次编辑会话内，刚上传的图片的本地 tempFilePath，优先用于预览以避免再 downloadFile 一次。
   const [localPreview, setLocalPreview] = useState('')
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -28,14 +40,11 @@ export default function EditProfile() {
     }
   })
 
-  // 服务端头像 URL：http(s):// 或 /static/... 解析后的绝对地址
   const remoteAvatarUrl = useMemo(
     () => (localPreview ? '' : resolveAssetUrl(avatar)),
     [localPreview, avatar],
   )
-  // 对 http:// 链接自动走 downloadFile 得到 tempFilePath
   const downloadedSrc = useRemoteImage(remoteAvatarUrl)
-  // 优先用本次编辑选中的本地图，避免上传成功后再 download 回来
   const avatarSrc = localPreview || downloadedSrc
 
   const dirty = useMemo(() => {
@@ -51,7 +60,6 @@ export default function EditProfile() {
     let tempPath: string
     let sizeHint: number | undefined
     try {
-      // chooseMedia 在微信端支持；其他端若无，由 Taro 兜底到 chooseImage。
       const picked = await Taro.chooseMedia({
         count: 1,
         mediaType: ['image'],
@@ -63,7 +71,6 @@ export default function EditProfile() {
       tempPath = file.tempFilePath
       sizeHint = file.size
     } catch (err) {
-      // 用户取消不报错
       const msg = err instanceof Error ? err.message : ''
       if (msg.includes('cancel') || msg.includes('fail cancel')) return
       Taro.showToast({ title: '选图失败', icon: 'none' })
@@ -75,7 +82,6 @@ export default function EditProfile() {
       return
     }
 
-    // 选图后立即本地预览，不必等上传回来
     setLocalPreview(tempPath)
     setUploading(true)
     Taro.showLoading({ title: '上传中…', mask: true })
@@ -85,15 +91,10 @@ export default function EditProfile() {
       Taro.hideLoading()
       Taro.showToast({ title: '头像已更新，记得保存', icon: 'none' })
     } catch (e) {
-      // 上传失败回滚本地预览
       setLocalPreview('')
       Taro.hideLoading()
       const msg =
-        e instanceof ApiError
-          ? e.msg
-          : e instanceof Error
-          ? e.message
-          : '上传失败'
+        e instanceof ApiError ? e.msg : e instanceof Error ? e.message : '上传失败'
       Taro.showToast({ title: msg, icon: 'none' })
     } finally {
       setUploading(false)
@@ -142,71 +143,121 @@ export default function EditProfile() {
   }
 
   return (
-    <View className="flex min-h-screen flex-col bg-pink-50 px-6 pt-8">
+    <View
+      className="min-h-screen px-5 pt-6 pb-10"
+      style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+    >
       <Form className="w-full">
-        <View className="flex flex-col items-center">
+        {/* 头像 */}
+        <View className="mb-6 flex flex-col items-center">
           <View
-            className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-pink-200 bg-white"
+            className="relative overflow-hidden rounded-full bg-white"
+            style={{
+              width: px(192),
+              height: px(192),
+              border: `3px solid #668F80`,
+              boxShadow: `0 0 0 5px rgba(102,143,128,0.18)`,
+            }}
             onClick={uploading ? undefined : pickAndUploadAvatar}
           >
             {avatarSrc ? (
               <Image src={avatarSrc} className="h-full w-full" mode="aspectFill" />
             ) : (
-              <View className="flex h-full w-full items-center justify-center text-3xl text-pink-300">
-                <Text>♡</Text>
+              <View className="flex h-full w-full items-center justify-center">
+                <Text style={{ fontSize: px(64), color: '#D6A2AD' }}>♡</Text>
               </View>
             )}
-            <View className="absolute inset-x-0 bottom-0 bg-pink-500/70 py-1 text-center text-xs text-white">
-              {uploading ? '上传中…' : '点击换头像'}
+            <View
+              className="absolute inset-x-0 bottom-0 py-1 text-center"
+              style={{ backgroundColor: 'rgba(102,143,128,0.75)' }}
+            >
+              <Text style={{ fontSize: px(22), color: '#fff' }}>
+                {uploading ? '上传中…' : '点击换头像'}
+              </Text>
             </View>
           </View>
         </View>
 
-        <View className="mt-8 flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm">
+        {/* 表单卡片 */}
+        <View
+          className="rounded-2xl bg-white px-5 py-5"
+          style={{
+            border: '1px solid rgba(195,181,159,0.5)',
+            boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.07)`,
+          }}
+        >
+          {/* 昵称 */}
           <View className="flex flex-col gap-2">
             <View className="flex items-center justify-between">
-              <Text className="text-sm text-gray-600">昵称</Text>
-              <Text className="text-xs text-gray-400">
+              <Text className="text-xs font-medium" style={{ color: '#4A6670' }}>昵称 ✿</Text>
+              <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
                 {nickname.length}/{NICKNAME_MAX}
               </Text>
             </View>
-            <Input
-              className="rounded-lg bg-pink-50 px-4 py-3 text-base text-gray-800"
-              value={nickname}
-              placeholder="给自己起个可爱的名字"
-              maxlength={NICKNAME_MAX}
-              onInput={(e) => setNickname(e.detail.value)}
-            />
+            <View
+              className="flex h-12 flex-row items-center overflow-hidden rounded-2xl"
+              style={{ background: 'rgba(195,181,159,0.12)', border: '1px solid rgba(102,143,128,0.45)' }}
+            >
+              <Input
+                className="flex-1"
+                style={INPUT_INNER_STYLE}
+                value={nickname}
+                placeholder="给自己起个可爱的名字"
+                placeholderClass="page-input-placeholder"
+                placeholderStyle={PLACEHOLDER_STYLE}
+                maxlength={NICKNAME_MAX}
+                onInput={(e) => setNickname(e.detail.value)}
+              />
+            </View>
           </View>
 
-          <View className="flex flex-col gap-2">
+          <View className="mt-5 flex flex-col gap-2">
             <View className="flex items-center justify-between">
-              <Text className="text-sm text-gray-600">签名</Text>
-              <Text className="text-xs text-gray-400">
+              <Text className="text-xs font-medium" style={{ color: '#4A6670' }}>签名 ⊹</Text>
+              <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
                 {bio.length}/{BIO_MAX}
               </Text>
             </View>
-            <Textarea
-              className="min-h-[88px] rounded-lg bg-pink-50 px-4 py-3 text-base text-gray-800"
-              value={bio}
-              placeholder="最近的心情 / 想说的话"
-              maxlength={BIO_MAX}
-              onInput={(e) => setBio(e.detail.value)}
-              autoHeight
-            />
+            <View
+              className="overflow-hidden rounded-2xl px-4 py-3"
+              style={{ background: 'rgba(195,181,159,0.12)', border: '1px solid rgba(102,143,128,0.45)' }}
+            >
+              <Textarea
+                className="w-full"
+                style={{ fontSize: px(32), color: '#4A6670', minHeight: px(160) }}
+                value={bio}
+                placeholder="最近的心情 / 想说的话"
+                placeholderClass="textarea-placeholder"
+                placeholderStyle={TEXTAREA_PLACEHOLDER_STYLE}
+                maxlength={BIO_MAX}
+                onInput={(e) => setBio(e.detail.value)}
+                autoHeight
+              />
+            </View>
           </View>
         </View>
 
+        {/* 保存按钮 */}
         <Button
-          className="mt-6 rounded-full bg-pink-500 py-3 text-base font-medium text-white"
+          className="mt-5 w-full rounded-full font-semibold text-white"
+          style={{
+            height: px(96),
+            lineHeight: px(96),
+            fontSize: px(30),
+            background: submitting || uploading ? '#A0AF84' : '#668F80',
+            letterSpacing: '0.04em',
+          }}
           loading={submitting}
           disabled={submitting || uploading}
           onClick={handleSubmit}
         >
-          保存
+          保存 ✦
         </Button>
 
-        <Text className="mt-4 block text-center text-xs text-gray-400">
+        <Text
+          className="mt-3 block text-center"
+          style={{ fontSize: px(22), color: '#C3B59F' }}
+        >
           头像支持 jpeg / png / webp，单张 ≤ 5 MB
         </Text>
       </Form>

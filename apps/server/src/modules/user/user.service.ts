@@ -63,17 +63,24 @@ export class UserService {
   }
 
   /**
-   * 部分更新 nickname / bio / avatar。
+   * 部分更新 profile 字段 + settings 子文档。
+   * settings 走 dot-path 做 partial merge，避免覆盖整个子对象
+   * （未来 settings 字段变多时单字段写入也不受影响）。
    * 返回更新后的完整 UserDocument；若没有任何字段要改则直接返回现状。
    */
   async updateProfile(
     userId: string | Types.ObjectId,
     dto: UpdateMeDto,
   ): Promise<UserDocument | null> {
-    const $set: Partial<Pick<User, 'nickname' | 'bio' | 'avatar'>> = {};
+    const $set: Record<string, unknown> = {};
     if (dto.nickname !== undefined) $set.nickname = dto.nickname;
     if (dto.bio !== undefined) $set.bio = dto.bio;
     if (dto.avatar !== undefined) $set.avatar = dto.avatar;
+    if (dto.settings) {
+      if (dto.settings.defaultWitnessTab !== undefined) {
+        $set['settings.defaultWitnessTab'] = dto.settings.defaultWitnessTab;
+      }
+    }
 
     if (Object.keys($set).length === 0) {
       return this.userModel.findById(userId).exec();
@@ -86,6 +93,8 @@ export class UserService {
 
   /** UserDocument → MeDto 的统一映射，避免多处散落。 */
   toMe(user: UserDocument): MeDto {
+    // 老账号可能缺 settings，兜底给默认值
+    const s = user.settings ?? { defaultWitnessTab: 'daily' as const };
     return {
       id: String(user._id),
       username: user.username,
@@ -93,6 +102,9 @@ export class UserService {
       avatar: user.avatar,
       bio: user.bio,
       partnerId: user.partnerId ? String(user.partnerId) : null,
+      settings: {
+        defaultWitnessTab: s.defaultWitnessTab ?? 'daily',
+      },
     };
   }
 }

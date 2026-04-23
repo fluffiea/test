@@ -1,5 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { MeDto as MeShape } from '@momoya/shared';
+import type {
+  MeDto as MeShape,
+  UserSettingsDto as UserSettingsShape,
+  WitnessDefaultTab,
+} from '@momoya/shared';
+
+/**
+ * 用户偏好设置（当前仅一个开关，未来会扩）。
+ * 字段形状由 `@momoya/shared` 的 `UserSettingsDto` 约束。
+ */
+export class UserSettingsDto implements UserSettingsShape {
+  @ApiProperty({
+    enum: ['daily', 'report'],
+    example: 'daily',
+    description: '见证页首次进入时默认落在哪个子 tab',
+  })
+  defaultWitnessTab!: WitnessDefaultTab;
+}
 
 /**
  * 当前登录用户的基本信息，`GET /auth/me`、`PATCH /users/me` 都返回这个结构。
@@ -34,4 +51,7 @@ export class MeDto implements MeShape {
     description: '绑定伴侣的用户 id，未绑定为 null',
   })
   partnerId!: string | null;
+
+  @ApiProperty({ type: UserSettingsDto, description: '用户偏好设置' })
+  settings!: UserSettingsDto;
 }

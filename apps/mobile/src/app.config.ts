@@ -1,8 +1,9 @@
 export default defineAppConfig({
   pages: [
     // 数组首项即冷启动首页；未登录会在 hydrate 后由各页面自行 reLaunch 到 login。
-    'pages/index/index',
-    'pages/reports/index/index',
+    'pages/home/index',
+    'pages/witness/index',
+    'pages/echo/index',
     'pages/me/index',
     'pages/login/index',
     'pages/moments/publish/index',
@@ -10,22 +11,27 @@ export default defineAppConfig({
     'pages/posts/detail/index',
     'pages/me/change-password/index',
     'pages/me/edit-profile/index',
+    'pages/me/settings/index',
   ],
+  // window：nav bar 与页面顶部 warm-sand gradient 对齐
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fdf2f8',
+    navigationBarBackgroundColor: '#C3B59F',
     navigationBarTitleText: 'momoya',
     navigationBarTextStyle: 'black',
+    backgroundColor: '#C3B59F',
   },
+  // tabBar：未选中 warm-sand，选中 teal-green，底色白
   tabBar: {
-    color: '#d1a7b8',
-    selectedColor: '#ec4899',
-    backgroundColor: '#fff1f5',
+    color: '#C3B59F',
+    selectedColor: '#668F80',
+    backgroundColor: '#ffffff',
     borderStyle: 'white',
     list: [
-      { pagePath: 'pages/index/index', text: '日常' },
-      { pagePath: 'pages/reports/index/index', text: '报备' },
-      { pagePath: 'pages/me/index', text: '我的' },
+      { pagePath: 'pages/home/index', text: '朝夕', iconPath: 'assets/icons/tabbar/home.png', selectedIconPath: 'assets/icons/tabbar/home-active.png' },
+      { pagePath: 'pages/witness/index', text: '见证', iconPath: 'assets/icons/tabbar/witness.png', selectedIconPath: 'assets/icons/tabbar/witness-active.png' },
+      { pagePath: 'pages/echo/index', text: '回响', iconPath: 'assets/icons/tabbar/echo.png', selectedIconPath: 'assets/icons/tabbar/echo-active.png' },
+      { pagePath: 'pages/me/index', text: '独白', iconPath: 'assets/icons/tabbar/me.png', selectedIconPath: 'assets/icons/tabbar/me-active.png' },
     ],
   },
 })

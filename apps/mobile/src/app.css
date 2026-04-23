@@ -31,3 +31,18 @@
   line-height: 96px;
   font-weight: 400;
 }
+
+/* 通用表单输入框 placeholder */
+.page-input-placeholder {
+  color: #C3B59F;
+  font-size: 32px;
+  line-height: 96px;
+  font-weight: 400;
+}
+
+/* Textarea placeholder */
+.textarea-placeholder {
+  color: #C3B59F;
+  font-size: 32px;
+  font-weight: 400;
+}

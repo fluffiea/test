@@ -1,18 +1,36 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsEnum,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
-import type { UpdateMeInput } from '@momoya/shared';
+import type { UpdateMeInput, WitnessDefaultTab } from '@momoya/shared';
 import {
   ASSET_URL_PATTERN,
   BIO_MAX,
   NICKNAME_MAX,
   NICKNAME_MIN,
 } from '@momoya/shared';
+
+/**
+ * settings 子结构，全部字段可选，支持部分更新（`PATCH`-style）。
+ */
+export class UpdateMeSettingsDto {
+  @ApiPropertyOptional({
+    enum: ['daily', 'report'],
+    example: 'daily',
+    description: '见证页默认子 tab',
+  })
+  @IsOptional()
+  @IsEnum(['daily', 'report'])
+  defaultWitnessTab?: WitnessDefaultTab;
+}
 
 /**
  * PATCH /users/me 请求体。全部字段可选，但至少传一项才有意义
@@ -54,4 +72,14 @@ export class UpdateMeDto implements UpdateMeInput {
     message: 'avatar 必须是 /static/ 相对路径或 http(s):// 完整 URL',
   })
   avatar?: string;
+
+  @ApiPropertyOptional({
+    type: UpdateMeSettingsDto,
+    description: '偏好设置，部分字段可选；后端做 partial merge 不会覆盖未传字段',
+  })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => UpdateMeSettingsDto)
+  settings?: UpdateMeSettingsDto;
 }

@@ -17,6 +17,11 @@ import { useDailyStore } from '../../../store/postFeedStore'
 import { parseTagInput } from '../../../utils/tagInput'
 import { formatAbsolute } from '../../../utils/time'
 
+const px = (n: number) => Taro.pxTransform(n)
+
+const TEXTAREA_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:16px;'
+const TAG_INPUT_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
+
 interface Slot {
   localPath: string
   remoteUrl: string | null
@@ -55,7 +60,6 @@ export default function PublishDaily() {
     }
   })
 
-  // 编辑模式：拉取原 post 填充表单
   useEffect(() => {
     if (!editingId) return
     setLoadingPost(true)
@@ -126,15 +130,9 @@ export default function PublishDaily() {
         }
         return true
       })
-      .map((p) => ({
-        localPath: p.tempFilePath,
-        remoteUrl: null,
-        uploading: true,
-        failed: false,
-      }))
+      .map((p) => ({ localPath: p.tempFilePath, remoteUrl: null, uploading: true, failed: false }))
 
     if (newSlots.length === 0) return
-
     setSlots((prev) => [...prev, ...newSlots])
 
     await Promise.all(
@@ -172,13 +170,6 @@ export default function PublishDaily() {
     Taro.previewImage({ current: localPath, urls }).catch(() => {})
   }
 
-  const handlePickTime = (e: { detail: { value: string } }) => {
-    // 原生 Picker 返回 `YYYY-MM-DDTHH:mm` 形式（某些基础库是空格分隔），解析并更新
-    const raw = String(e.detail.value ?? '').replace(' ', 'T')
-    const d = new Date(raw)
-    if (!Number.isNaN(d.getTime())) setHappenedAt(d)
-  }
-
   const handleRemoveTag = (t: string) => {
     const next = parsedTags.filter((x) => x !== t)
     setTagInput(next.join(','))
@@ -199,7 +190,7 @@ export default function PublishDaily() {
       const confirm = await Taro.showModal({
         title: '有图片上传失败',
         content: '失败的图不会被发布，是否继续？',
-        confirmColor: '#ec4899',
+        confirmColor: '#668F80',
       })
       if (!confirm.confirm) return
     }
@@ -240,27 +231,49 @@ export default function PublishDaily() {
   }
 
   return (
-    <View className="flex min-h-screen flex-col bg-pink-50 px-4 pt-4">
-      <View className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <View
+      className="min-h-screen px-4 pb-10 pt-4"
+      style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+    >
+      {/* 正文 + 图片 */}
+      <View
+        className="rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-1 flex items-center gap-1">
+          <Text style={{ fontSize: px(24), color: '#A0AF84' }}>✿</Text>
+          <Text className="text-xs font-medium" style={{ color: '#668F80' }}>记录今天</Text>
+        </View>
         <Textarea
-          className="min-h-[140px] w-full text-base leading-relaxed text-gray-800"
+          className="w-full"
+          style={{
+            fontSize: px(32),
+            lineHeight: px(48),
+            color: '#4A6670',
+            minHeight: px(200),
+          }}
           value={text}
           placeholder="记录今天的一点小事…"
+          placeholderClass="textarea-placeholder"
+          placeholderStyle={TEXTAREA_PLACEHOLDER_STYLE}
           maxlength={TEXT_MAX}
           onInput={(e) => setText(e.detail.value)}
           autoHeight
         />
-        <View className="flex items-center justify-end">
-          <Text className="text-xs text-gray-400">
-            {text.length}/{TEXT_MAX}
-          </Text>
+        <View className="flex items-center justify-end mt-1">
+          <Text style={{ fontSize: px(22), color: '#C3B59F' }}>{text.length}/{TEXT_MAX}</Text>
         </View>
 
-        <View className="grid grid-cols-3 gap-2">
+        {/* 图片格 */}
+        <View className="mt-2 grid grid-cols-3 gap-2">
           {slots.map((slot) => (
             <View
               key={slot.localPath}
-              className="relative aspect-square overflow-hidden rounded-lg bg-pink-50"
+              className="relative aspect-square overflow-hidden rounded-xl"
+              style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
             >
               <Image
                 src={slot.localPath}
@@ -269,126 +282,179 @@ export default function PublishDaily() {
                 onClick={() => handlePreviewSlot(slot.localPath)}
               />
               {slot.uploading ? (
-                <View className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
-                  <Text className="text-white">上传中</Text>
+                <View
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(74,102,112,0.45)' }}
+                >
+                  <Text style={{ fontSize: px(22), color: '#fff' }}>上传中</Text>
                 </View>
               ) : null}
               {slot.failed ? (
-                <View className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs text-white">
-                  <Text className="text-white">失败</Text>
+                <View
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(214,162,173,0.7)' }}
+                >
+                  <Text style={{ fontSize: px(22), color: '#fff' }}>失败</Text>
                 </View>
               ) : null}
               <View
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-xs text-white"
+                className="absolute right-1 top-1 flex items-center justify-center rounded-full"
+                style={{
+                  width: px(40),
+                  height: px(40),
+                  backgroundColor: 'rgba(74,102,112,0.55)',
+                }}
                 onClick={() => handleRemoveSlot(slot.localPath)}
               >
-                <Text className="text-xs leading-none text-white">×</Text>
+                <Text style={{ fontSize: px(24), lineHeight: px(24), color: '#fff' }}>×</Text>
               </View>
             </View>
           ))}
           {canAddMore ? (
             <View
-              className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-pink-200 bg-white text-2xl text-pink-400"
+              className="flex aspect-square items-center justify-center rounded-xl"
+              style={{
+                border: '1.5px dashed rgba(102,143,128,0.45)',
+                backgroundColor: 'rgba(195,181,159,0.08)',
+              }}
               onClick={handlePickImages}
             >
-              <Text className="text-3xl leading-none text-pink-300">+</Text>
+              <Text style={{ fontSize: px(56), color: '#C3B59F', lineHeight: px(56) }}>+</Text>
             </View>
           ) : null}
         </View>
-        <Text className="text-[11px] text-gray-400">
+        <Text style={{ fontSize: px(22), color: '#C3B59F', marginTop: px(8) }}>
           最多 {IMAGE_MAX} 张，单张 ≤ 5 MB；仅你和 TA 可见
         </Text>
       </View>
 
-      <View className="mt-3 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
-        <View className="flex flex-col gap-2">
-          <Text className="text-xs text-gray-500">tags</Text>
+      {/* Tags */}
+      <View
+        className="mt-3 rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-2 flex items-center gap-1">
+          <Text style={{ fontSize: px(24), color: '#A0AF84' }}>⊹</Text>
+          <Text className="text-xs font-medium" style={{ color: '#668F80' }}>标签</Text>
+        </View>
+        <View
+          className="flex h-10 flex-row items-center overflow-hidden rounded-2xl"
+          style={{ background: 'rgba(195,181,159,0.12)', border: '1px solid rgba(102,143,128,0.35)' }}
+        >
           <Input
-            className="h-9 w-full rounded-lg border border-pink-100 px-3 text-sm text-gray-800"
+            className="flex-1"
+            style={{ paddingLeft: px(28), paddingRight: px(28), fontSize: px(28), color: '#4A6670' }}
             value={tagInput}
-            placeholder="用 , 或 ， 分隔；例：吃饭,约会,电影"
+            placeholder="用 , 分隔；例：吃饭,约会,电影"
+            placeholderClass="page-input-placeholder"
+            placeholderStyle={TAG_INPUT_PLACEHOLDER_STYLE}
             onInput={(e) => setTagInput(e.detail.value)}
           />
-          {parsedTags.length > 0 ? (
-            <View className="flex flex-wrap gap-1.5">
-              {parsedTags.map((t) => (
-                <TagChip key={t} name={t} removable onRemove={() => handleRemoveTag(t)} />
-              ))}
-            </View>
-          ) : null}
-          <Text
-            className={`text-[11px] ${
-              tagOverflow ? 'text-red-500' : 'text-gray-400'
-            }`}
-          >
-            {parsedTags.length}/{DAILY_TAG_MAX_PER_POST}
-          </Text>
         </View>
-
-        <View className="flex flex-col gap-2">
-          <Text className="text-xs text-gray-500">发生时间</Text>
-          <View className="flex flex-wrap items-center gap-2">
-            <Picker
-              mode="date"
-              value={toDateValue(happenedAt)}
-              onChange={(e) => {
-                const datePart = String(e.detail.value ?? '')
-                const [y, m, d] = datePart.split('-').map((x) => Number(x))
-                if (!y || !m || !d) return
-                const base = happenedAt ? new Date(happenedAt) : new Date()
-                base.setFullYear(y)
-                base.setMonth(m - 1)
-                base.setDate(d)
-                setHappenedAt(base)
-              }}
-            >
-              <View className="rounded-full bg-pink-50 px-3 py-1 text-xs text-pink-500">
-                <Text className="text-pink-500">
-                  {happenedAt
-                    ? formatAbsolute(happenedAt.toISOString())
-                    : '默认 = 现在'}
-                </Text>
-              </View>
-            </Picker>
-            <Picker
-              mode="time"
-              value={toTimeValue(happenedAt)}
-              onChange={(e) => {
-                const timePart = String(e.detail.value ?? '')
-                const [hh, mm] = timePart.split(':').map((x) => Number(x))
-                if (Number.isNaN(hh) || Number.isNaN(mm)) return
-                const base = happenedAt ? new Date(happenedAt) : new Date()
-                base.setHours(hh)
-                base.setMinutes(mm)
-                setHappenedAt(base)
-              }}
-            >
-              <View className="rounded-full bg-white px-3 py-1 text-xs text-pink-500 ring-1 ring-pink-200">
-                <Text className="text-pink-500">改时间</Text>
-              </View>
-            </Picker>
-            {happenedAt ? (
-              <View
-                className="rounded-full bg-gray-100 px-2 py-1 text-[11px] text-gray-500"
-                onClick={() => setHappenedAt(null)}
-              >
-                <Text className="text-gray-500">清除</Text>
-              </View>
-            ) : null}
+        {parsedTags.length > 0 ? (
+          <View className="mt-2 flex flex-wrap gap-1.5">
+            {parsedTags.map((t) => (
+              <TagChip key={t} name={t} removable onRemove={() => handleRemoveTag(t)} />
+            ))}
           </View>
-          <Text className="text-[11px] text-gray-400">
-            不选则以发布时间为准；适合补记昨天的日常。
-          </Text>
-        </View>
+        ) : null}
+        <Text
+          className="mt-1"
+          style={{ fontSize: px(22), color: tagOverflow ? '#D6A2AD' : '#C3B59F' }}
+        >
+          {parsedTags.length}/{DAILY_TAG_MAX_PER_POST}
+        </Text>
       </View>
 
+      {/* 发生时间 */}
+      <View
+        className="mt-3 rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-2 flex items-center gap-1">
+          <Text style={{ fontSize: px(24), color: '#A0AF84' }}>✦</Text>
+          <Text className="text-xs font-medium" style={{ color: '#668F80' }}>发生时间</Text>
+        </View>
+        <View className="flex flex-wrap items-center gap-2">
+          <Picker
+            mode="date"
+            value={toDateValue(happenedAt)}
+            onChange={(e) => {
+              const datePart = String(e.detail.value ?? '')
+              const [y, m, d] = datePart.split('-').map((x) => Number(x))
+              if (!y || !m || !d) return
+              const base = happenedAt ? new Date(happenedAt) : new Date()
+              base.setFullYear(y)
+              base.setMonth(m - 1)
+              base.setDate(d)
+              setHappenedAt(base)
+            }}
+          >
+            <View
+              className="rounded-full px-3 py-1"
+              style={{ backgroundColor: 'rgba(102,143,128,0.12)', border: '1px solid rgba(102,143,128,0.35)' }}
+            >
+              <Text style={{ fontSize: px(26), color: '#668F80' }}>
+                {happenedAt ? formatAbsolute(happenedAt.toISOString()) : '默认 = 现在'}
+              </Text>
+            </View>
+          </Picker>
+          <Picker
+            mode="time"
+            value={toTimeValue(happenedAt)}
+            onChange={(e) => {
+              const timePart = String(e.detail.value ?? '')
+              const [hh, mm] = timePart.split(':').map((x) => Number(x))
+              if (Number.isNaN(hh) || Number.isNaN(mm)) return
+              const base = happenedAt ? new Date(happenedAt) : new Date()
+              base.setHours(hh)
+              base.setMinutes(mm)
+              setHappenedAt(base)
+            }}
+          >
+            <View
+              className="rounded-full px-3 py-1"
+              style={{ border: '1px solid rgba(195,181,159,0.6)', backgroundColor: 'transparent' }}
+            >
+              <Text style={{ fontSize: px(26), color: '#4A6670' }}>改时间</Text>
+            </View>
+          </Picker>
+          {happenedAt ? (
+            <View
+              className="rounded-full px-2 py-1"
+              style={{ backgroundColor: 'rgba(195,181,159,0.2)' }}
+              onClick={() => setHappenedAt(null)}
+            >
+              <Text style={{ fontSize: px(24), color: '#C3B59F' }}>清除</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={{ fontSize: px(22), color: '#C3B59F', marginTop: px(8) }}>
+          不选则以发布时间为准；适合补记昨天的日常。
+        </Text>
+      </View>
+
+      {/* 发布按钮 */}
       <Button
-        className="mt-6 rounded-full bg-pink-500 py-3 text-base font-medium text-white"
+        className="mt-5 w-full rounded-full font-semibold text-white"
+        style={{
+          height: px(96),
+          lineHeight: px(96),
+          fontSize: px(30),
+          background: canSubmit ? '#668F80' : '#C3B59F',
+          letterSpacing: '0.04em',
+        }}
         loading={submitting}
         disabled={!canSubmit}
         onClick={handleSubmit}
       >
-        {isEditing ? '保存' : '发布'}
+        {isEditing ? '保存 ✦' : '发布 ✦'}
       </Button>
     </View>
   )

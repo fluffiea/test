@@ -1,6 +1,19 @@
 import { create } from 'zustand'
-import type { MeDto, TokenPairDto } from '@momoya/shared'
+import type { MeDto, TokenPairDto, UserSettingsDto } from '@momoya/shared'
 import { clearAuthStorage, readStorage, StorageKey, writeStorage } from '../services/storage'
+
+/** 老版本 storage 里缓存的 user 可能没有 settings，读出来后兜底一下。 */
+function withDefaultSettings(user: MeDto | null): MeDto | null {
+  if (!user) return user
+  const fallback: UserSettingsDto = { defaultWitnessTab: 'daily' }
+  return {
+    ...user,
+    settings: {
+      defaultWitnessTab:
+        user.settings?.defaultWitnessTab ?? fallback.defaultWitnessTab,
+    },
+  }
+}
 
 interface AuthState {
   accessToken: string | null
@@ -26,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrate: () => {
     const accessToken = readStorage<string>(StorageKey.AccessToken)
     const refreshToken = readStorage<string>(StorageKey.RefreshToken)
-    const user = readStorage<MeDto>(StorageKey.User)
+    const user = withDefaultSettings(readStorage<MeDto>(StorageKey.User))
     set({ accessToken, refreshToken, user, hydrated: true })
   },
 
@@ -37,15 +50,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setUser: (user) => {
-    writeStorage(StorageKey.User, user)
-    set({ user })
+    const normalized = withDefaultSettings(user)!
+    writeStorage(StorageKey.User, normalized)
+    set({ user: normalized })
   },
 
   login: ({ accessToken, refreshToken, user }) => {
+    const normalized = withDefaultSettings(user)!
     writeStorage(StorageKey.AccessToken, accessToken)
     writeStorage(StorageKey.RefreshToken, refreshToken)
-    writeStorage(StorageKey.User, user)
-    set({ accessToken, refreshToken, user })
+    writeStorage(StorageKey.User, normalized)
+    set({ accessToken, refreshToken, user: normalized })
   },
 
   logout: () => {

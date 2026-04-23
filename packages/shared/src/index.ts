@@ -1,3 +1,4 @@
+export * from './anniversary';
 export * from './api';
 export * from './auth';
 export * from './constants';

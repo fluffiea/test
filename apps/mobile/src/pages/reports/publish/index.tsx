@@ -24,6 +24,11 @@ import { useAuthStore } from '../../../store/authStore'
 import { useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute } from '../../../utils/time'
 
+const px = (n: number) => Taro.pxTransform(n)
+
+const TEXTAREA_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:16px;'
+const TAG_INPUT_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
+
 interface Slot {
   localPath: string
   remoteUrl: string | null
@@ -76,11 +81,8 @@ export default function PublishReport() {
     }
   }
 
-  useEffect(() => {
-    void loadTags()
-  }, [])
+  useEffect(() => { void loadTags() }, [])
 
-  // 编辑模式：拉取原 post 填充表单
   useEffect(() => {
     if (!editingId) return
     setLoadingPost(true)
@@ -136,10 +138,7 @@ export default function PublishReport() {
         next.delete(name)
       } else {
         if (next.size >= REPORT_TAG_MAX) {
-          Taro.showToast({
-            title: `最多选 ${REPORT_TAG_MAX} 个`,
-            icon: 'none',
-          })
+          Taro.showToast({ title: `最多选 ${REPORT_TAG_MAX} 个`, icon: 'none' })
           return prev
         }
         next.add(name)
@@ -153,7 +152,7 @@ export default function PublishReport() {
     const confirm = await Taro.showModal({
       title: `删除自定义 tag "${t.name}"`,
       content: '历史报备里已存的 tag 会保留，但不再可选。',
-      confirmColor: '#ec4899',
+      confirmColor: '#668F80',
     })
     if (!confirm.confirm) return
     try {
@@ -173,28 +172,18 @@ export default function PublishReport() {
 
   const handleCommitCustom = async () => {
     const name = customInput.trim()
-    if (!name) {
-      setCustomAdding(false)
-      return
-    }
+    if (!name) { setCustomAdding(false); return }
     if (name.length > TAG_NAME_MAX) {
-      Taro.showToast({
-        title: `名称最多 ${TAG_NAME_MAX} 字`,
-        icon: 'none',
-      })
+      Taro.showToast({ title: `名称最多 ${TAG_NAME_MAX} 字`, icon: 'none' })
       return
     }
     if (customTagCount >= USER_TAG_PER_USER_LIMIT) {
-      Taro.showToast({
-        title: `自定义 tag 已达上限（${USER_TAG_PER_USER_LIMIT}）`,
-        icon: 'none',
-      })
+      Taro.showToast({ title: `自定义 tag 已达上限（${USER_TAG_PER_USER_LIMIT}）`, icon: 'none' })
       return
     }
     try {
       const created = await tagApi.create({ name })
       setAvailableTags((prev) => [...prev, created])
-      // 新建成功后直接勾选它，符合常见行为
       setSelectedTags((prev) => {
         if (prev.has(created.name)) return prev
         if (prev.size >= REPORT_TAG_MAX) return prev
@@ -237,15 +226,9 @@ export default function PublishReport() {
         }
         return true
       })
-      .map((p) => ({
-        localPath: p.tempFilePath,
-        remoteUrl: null,
-        uploading: true,
-        failed: false,
-      }))
+      .map((p) => ({ localPath: p.tempFilePath, remoteUrl: null, uploading: true, failed: false }))
 
     if (newSlots.length === 0) return
-
     setSlots((prev) => [...prev, ...newSlots])
 
     await Promise.all(
@@ -291,17 +274,14 @@ export default function PublishReport() {
       return
     }
     if (selectedTags.size < REPORT_TAG_MIN) {
-      Taro.showToast({
-        title: `至少选 ${REPORT_TAG_MIN} 个 tag`,
-        icon: 'none',
-      })
+      Taro.showToast({ title: `至少选 ${REPORT_TAG_MIN} 个 tag`, icon: 'none' })
       return
     }
     if (slots.some((s) => s.failed)) {
       const confirm = await Taro.showModal({
         title: '有图片上传失败',
         content: '失败的图不会被发布，是否继续？',
-        confirmColor: '#ec4899',
+        confirmColor: '#668F80',
       })
       if (!confirm.confirm) return
     }
@@ -342,27 +322,48 @@ export default function PublishReport() {
   }
 
   return (
-    <View className="flex min-h-screen flex-col bg-pink-50 px-4 pt-4">
-      <View className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <View
+      className="min-h-screen px-4 pb-10 pt-4"
+      style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+    >
+      {/* 正文 + 图片 */}
+      <View
+        className="rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-1 flex items-center gap-1">
+          <Text style={{ fontSize: px(24), color: '#A0AF84' }}>✦</Text>
+          <Text className="text-xs font-medium" style={{ color: '#668F80' }}>报备内容</Text>
+        </View>
         <Textarea
-          className="min-h-[120px] w-full text-base leading-relaxed text-gray-800"
+          className="w-full"
+          style={{
+            fontSize: px(32),
+            lineHeight: px(48),
+            color: '#4A6670',
+            minHeight: px(180),
+          }}
           value={text}
           placeholder="报备一下今天的去向…"
+          placeholderClass="textarea-placeholder"
+          placeholderStyle={TEXTAREA_PLACEHOLDER_STYLE}
           maxlength={TEXT_MAX}
           onInput={(e) => setText(e.detail.value)}
           autoHeight
         />
-        <View className="flex items-center justify-end">
-          <Text className="text-xs text-gray-400">
-            {text.length}/{TEXT_MAX}
-          </Text>
+        <View className="flex items-center justify-end mt-1">
+          <Text style={{ fontSize: px(22), color: '#C3B59F' }}>{text.length}/{TEXT_MAX}</Text>
         </View>
 
-        <View className="grid grid-cols-3 gap-2">
+        <View className="mt-2 grid grid-cols-3 gap-2">
           {slots.map((slot) => (
             <View
               key={slot.localPath}
-              className="relative aspect-square overflow-hidden rounded-lg bg-pink-50"
+              className="relative aspect-square overflow-hidden rounded-xl"
+              style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
             >
               <Image
                 src={slot.localPath}
@@ -371,50 +372,72 @@ export default function PublishReport() {
                 onClick={() => handlePreviewSlot(slot.localPath)}
               />
               {slot.uploading ? (
-                <View className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
-                  <Text className="text-white">上传中</Text>
+                <View
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(74,102,112,0.45)' }}
+                >
+                  <Text style={{ fontSize: px(22), color: '#fff' }}>上传中</Text>
                 </View>
               ) : null}
               {slot.failed ? (
-                <View className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs text-white">
-                  <Text className="text-white">失败</Text>
+                <View
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(214,162,173,0.7)' }}
+                >
+                  <Text style={{ fontSize: px(22), color: '#fff' }}>失败</Text>
                 </View>
               ) : null}
               <View
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-xs text-white"
+                className="absolute right-1 top-1 flex items-center justify-center rounded-full"
+                style={{
+                  width: px(40),
+                  height: px(40),
+                  backgroundColor: 'rgba(74,102,112,0.55)',
+                }}
                 onClick={() => handleRemoveSlot(slot.localPath)}
               >
-                <Text className="text-xs leading-none text-white">×</Text>
+                <Text style={{ fontSize: px(24), lineHeight: px(24), color: '#fff' }}>×</Text>
               </View>
             </View>
           ))}
           {canAddMore ? (
             <View
-              className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-pink-200 bg-white text-2xl text-pink-400"
+              className="flex aspect-square items-center justify-center rounded-xl"
+              style={{
+                border: '1.5px dashed rgba(102,143,128,0.45)',
+                backgroundColor: 'rgba(195,181,159,0.08)',
+              }}
               onClick={handlePickImages}
             >
-              <Text className="text-3xl leading-none text-pink-300">+</Text>
+              <Text style={{ fontSize: px(56), color: '#C3B59F', lineHeight: px(56) }}>+</Text>
             </View>
           ) : null}
         </View>
-        <Text className="text-[11px] text-gray-400">
+        <Text style={{ fontSize: px(22), color: '#C3B59F', marginTop: px(8) }}>
           最多 {IMAGE_MAX} 张，单张 ≤ 5 MB
         </Text>
       </View>
 
-      <View className="mt-3 flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
-        <View className="flex items-center justify-between">
-          <Text className="text-sm text-gray-700">选择 tag</Text>
-          <Text className="text-[11px] text-gray-400">
+      {/* Tags 选择 */}
+      <View
+        className="mt-3 rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-2 flex items-center justify-between">
+          <View className="flex items-center gap-1">
+            <Text style={{ fontSize: px(24), color: '#A0AF84' }}>⊹</Text>
+            <Text className="text-xs font-medium" style={{ color: '#668F80' }}>选择 tag</Text>
+          </View>
+          <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
             {selectedTags.size}/{REPORT_TAG_MAX}（至少 {REPORT_TAG_MIN}）
           </Text>
         </View>
         <View className="flex flex-wrap gap-2">
           {availableTags.map((t) => (
-            <View
-              key={t.name}
-              onLongPress={() => void handleLongPressTag(t)}
-            >
+            <View key={t.name} onLongPress={() => void handleLongPressTag(t)}>
               <TagChip
                 name={t.name}
                 size="md"
@@ -424,11 +447,17 @@ export default function PublishReport() {
             </View>
           ))}
           {customAdding ? (
-            <View className="flex items-center gap-1 rounded-full bg-pink-50 px-2 py-1">
+            <View
+              className="flex items-center gap-1 rounded-full px-3 py-1"
+              style={{ backgroundColor: 'rgba(195,181,159,0.2)', border: '1px solid rgba(102,143,128,0.35)' }}
+            >
               <Input
-                className="min-w-[80px] text-sm text-pink-600"
+                className="min-w-[80px]"
+                style={{ fontSize: px(26), color: '#668F80' }}
                 value={customInput}
                 placeholder="新 tag"
+                placeholderClass="page-input-placeholder"
+                placeholderStyle={TAG_INPUT_PLACEHOLDER_STYLE}
                 maxlength={TAG_NAME_MAX}
                 focus
                 onInput={(e) => setCustomInput(e.detail.value)}
@@ -438,23 +467,34 @@ export default function PublishReport() {
             </View>
           ) : (
             <View
-              className="rounded-full border border-dashed border-pink-300 px-3 py-1 text-sm text-pink-500"
-              onClick={() => {
-                setCustomInput('')
-                setCustomAdding(true)
+              className="rounded-full px-3 py-1"
+              style={{
+                border: '1.5px dashed rgba(160,175,132,0.6)',
+                backgroundColor: 'transparent',
               }}
+              onClick={() => { setCustomInput(''); setCustomAdding(true) }}
             >
-              <Text className="text-pink-500">+ 自定义</Text>
+              <Text style={{ fontSize: px(26), color: '#A0AF84' }}>+ 自定义</Text>
             </View>
           )}
         </View>
-        <Text className="text-[11px] text-gray-400">
-          长按自定义 tag 可以删除；最多保留 {USER_TAG_PER_USER_LIMIT} 个。
+        <Text style={{ fontSize: px(22), color: '#C3B59F', marginTop: px(8) }}>
+          长按自定义 tag 可删除；最多保留 {USER_TAG_PER_USER_LIMIT} 个。
         </Text>
       </View>
 
-      <View className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-sm">
-        <Text className="text-xs text-gray-500">发生时间</Text>
+      {/* 发生时间 */}
+      <View
+        className="mt-3 rounded-2xl bg-white p-4"
+        style={{
+          border: '1px solid rgba(195,181,159,0.5)',
+          boxShadow: `0 ${px(4)} ${px(20)} rgba(74,102,112,0.07)`,
+        }}
+      >
+        <View className="mb-2 flex items-center gap-1">
+          <Text style={{ fontSize: px(24), color: '#A0AF84' }}>✦</Text>
+          <Text className="text-xs font-medium" style={{ color: '#668F80' }}>发生时间</Text>
+        </View>
         <View className="flex flex-wrap items-center gap-2">
           <Picker
             mode="date"
@@ -470,11 +510,12 @@ export default function PublishReport() {
               setHappenedAt(base)
             }}
           >
-            <View className="rounded-full bg-pink-50 px-3 py-1 text-xs text-pink-500">
-              <Text className="text-pink-500">
-                {happenedAt
-                  ? formatAbsolute(happenedAt.toISOString())
-                  : '默认 = 现在'}
+            <View
+              className="rounded-full px-3 py-1"
+              style={{ backgroundColor: 'rgba(102,143,128,0.12)', border: '1px solid rgba(102,143,128,0.35)' }}
+            >
+              <Text style={{ fontSize: px(26), color: '#668F80' }}>
+                {happenedAt ? formatAbsolute(happenedAt.toISOString()) : '默认 = 现在'}
               </Text>
             </View>
           </Picker>
@@ -491,28 +532,40 @@ export default function PublishReport() {
               setHappenedAt(base)
             }}
           >
-            <View className="rounded-full bg-white px-3 py-1 text-xs text-pink-500 ring-1 ring-pink-200">
-              <Text className="text-pink-500">改时间</Text>
+            <View
+              className="rounded-full px-3 py-1"
+              style={{ border: '1px solid rgba(195,181,159,0.6)' }}
+            >
+              <Text style={{ fontSize: px(26), color: '#4A6670' }}>改时间</Text>
             </View>
           </Picker>
           {happenedAt ? (
             <View
-              className="rounded-full bg-gray-100 px-2 py-1 text-[11px] text-gray-500"
+              className="rounded-full px-2 py-1"
+              style={{ backgroundColor: 'rgba(195,181,159,0.2)' }}
               onClick={() => setHappenedAt(null)}
             >
-              <Text className="text-gray-500">清除</Text>
+              <Text style={{ fontSize: px(24), color: '#C3B59F' }}>清除</Text>
             </View>
           ) : null}
         </View>
       </View>
 
+      {/* 报备按钮 */}
       <Button
-        className="mt-6 rounded-full bg-pink-500 py-3 text-base font-medium text-white"
+        className="mt-5 w-full rounded-full font-semibold text-white"
+        style={{
+          height: px(96),
+          lineHeight: px(96),
+          fontSize: px(30),
+          background: canSubmit ? '#A0AF84' : '#C3B59F',
+          letterSpacing: '0.04em',
+        }}
         loading={submitting}
         disabled={!canSubmit}
         onClick={handleSubmit}
       >
-        {isEditing ? '保存' : '报备'}
+        {isEditing ? '保存 ✦' : '报备 ✦'}
       </Button>
     </View>
   )

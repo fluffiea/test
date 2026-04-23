@@ -6,6 +6,25 @@ import { authApi } from '../../../services/auth'
 import { ApiError } from '../../../services/request'
 import { useAuthStore } from '../../../store/authStore'
 
+const px = (n: number) => Taro.pxTransform(n)
+
+const INPUT_INNER_STYLE = {
+  paddingLeft: px(32),
+  paddingRight: px(32),
+  height: px(96),
+  fontSize: px(32),
+  lineHeight: px(96),
+  color: '#4A6670',
+} as const
+
+const PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:16px;line-height:48px;'
+
+const FIELDS = [
+  { key: 'old', label: '当前密码 ❋', placeholder: '请输入当前密码' },
+  { key: 'new', label: '新密码 ✿', placeholder: `${PASSWORD_MIN}–64 位` },
+  { key: 'confirm', label: '确认新密码 ⊹', placeholder: '再次输入新密码' },
+] as const
+
 export default function ChangePassword() {
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -54,55 +73,74 @@ export default function ChangePassword() {
     }
   }
 
+  const values = { old: oldPassword, new: newPassword, confirm: confirmPassword }
+  const setters = {
+    old: setOldPassword,
+    new: setNewPassword,
+    confirm: setConfirmPassword,
+  }
+
   return (
-    <View className="flex min-h-screen flex-col bg-pink-50 px-6 pt-8">
+    <View
+      className="min-h-screen px-5 pt-6 pb-10"
+      style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+    >
       <Form className="w-full">
-        <View className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm">
-          <View className="flex flex-col gap-2">
-            <Text className="text-sm text-gray-600">当前密码</Text>
-            <Input
-              className="rounded-lg bg-pink-50 px-4 py-3 text-base text-gray-800"
-              password
-              placeholder="请输入当前密码"
-              value={oldPassword}
-              onInput={(e) => setOldPassword(e.detail.value)}
-              maxlength={64}
-            />
-          </View>
-          <View className="flex flex-col gap-2">
-            <Text className="text-sm text-gray-600">新密码</Text>
-            <Input
-              className="rounded-lg bg-pink-50 px-4 py-3 text-base text-gray-800"
-              password
-              placeholder="6-64 位"
-              value={newPassword}
-              onInput={(e) => setNewPassword(e.detail.value)}
-              maxlength={64}
-            />
-          </View>
-          <View className="flex flex-col gap-2">
-            <Text className="text-sm text-gray-600">确认新密码</Text>
-            <Input
-              className="rounded-lg bg-pink-50 px-4 py-3 text-base text-gray-800"
-              password
-              placeholder="再次输入新密码"
-              value={confirmPassword}
-              onInput={(e) => setConfirmPassword(e.detail.value)}
-              maxlength={64}
-            />
-          </View>
+        <View
+          className="rounded-2xl bg-white px-5 py-5"
+          style={{
+            border: '1px solid rgba(195,181,159,0.5)',
+            boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.07)`,
+          }}
+        >
+          {FIELDS.map((field, idx) => (
+            <View key={field.key} className={idx > 0 ? 'mt-5' : ''}>
+              <Text
+                className="mb-2 block text-xs font-medium"
+                style={{ color: '#4A6670' }}
+              >
+                {field.label}
+              </Text>
+              <View
+                className="flex h-12 flex-row items-center overflow-hidden rounded-2xl"
+                style={{ background: 'rgba(195,181,159,0.12)', border: '1px solid rgba(102,143,128,0.45)' }}
+              >
+                <Input
+                  className="flex-1"
+                  style={INPUT_INNER_STYLE}
+                  password
+                  placeholder={field.placeholder}
+                  placeholderClass="page-input-placeholder"
+                  placeholderStyle={PLACEHOLDER_STYLE}
+                  value={values[field.key]}
+                  onInput={(e) => setters[field.key](e.detail.value)}
+                  maxlength={64}
+                />
+              </View>
+            </View>
+          ))}
         </View>
 
         <Button
-          className="mt-6 rounded-full bg-pink-500 py-3 text-base font-medium text-white"
+          className="mt-5 w-full rounded-full font-semibold text-white"
+          style={{
+            height: px(96),
+            lineHeight: px(96),
+            fontSize: px(30),
+            background: submitting ? '#A0AF84' : '#668F80',
+            letterSpacing: '0.04em',
+          }}
           loading={submitting}
           disabled={submitting}
           onClick={handleSubmit}
         >
-          确认修改
+          确认修改 ✦
         </Button>
 
-        <Text className="mt-4 block text-center text-xs text-gray-400">
+        <Text
+          className="mt-3 block text-center"
+          style={{ fontSize: px(22), color: '#C3B59F' }}
+        >
           修改成功后其他已登录设备将自动下线
         </Text>
       </Form>

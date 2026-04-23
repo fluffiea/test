@@ -154,7 +154,7 @@ export default function Login() {
 
   useLoad(() => {
     if (useAuthStore.getState().isAuthed()) {
-      Taro.reLaunch({ url: '/pages/index/index' })
+      Taro.reLaunch({ url: '/pages/home/index' })
     }
   })
 
@@ -184,7 +184,7 @@ export default function Login() {
       Taro.hideLoading()
       Taro.showToast({ title: `欢迎回来，${result.user.nickname} ♡`, icon: 'success' })
       setTimeout(() => {
-        Taro.reLaunch({ url: '/pages/index/index' })
+        Taro.reLaunch({ url: '/pages/home/index' })
       }, 600)
     } catch (err) {
       Taro.hideLoading()

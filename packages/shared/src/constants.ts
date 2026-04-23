@@ -80,3 +80,15 @@ export const UPLOAD_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** URL 形式校验：必须是 /static/ 开头的相对路径或 http(s):// 完整 URL。 */
 export const ASSET_URL_PATTERN = /^(\/static\/|https?:\/\/)/;
+
+// ---------- anniversary ----------
+
+/** 纪念日名字长度（含）；system 纪念日名字固定，此上限只对用户自建生效。 */
+export const ANNIVERSARY_NAME_MIN = 1;
+export const ANNIVERSARY_NAME_MAX = 20;
+
+/** 每对情侣最多存多少条纪念日（含 system）。防止滥用。 */
+export const ANNIVERSARY_PER_COUPLE_LIMIT = 50;
+
+/** System 纪念日的固定名字；seed 时创建，前端不可改名，只能改日期。 */
+export const SYSTEM_ANNIVERSARY_TOGETHER = '在一起';

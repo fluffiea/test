@@ -12,6 +12,10 @@ import { useAuthStore } from '../../../store/authStore'
 import { useDailyStore, useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute, formatRelative } from '../../../utils/time'
 
+const px = (n: number) => Taro.pxTransform(n)
+
+const EVAL_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
+
 export default function PostDetail() {
   const router = useRouter()
   const postId = router.params.id ?? ''
@@ -61,9 +65,7 @@ export default function PostDetail() {
     }
   }, [postId])
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  useEffect(() => { void load() }, [load])
 
   const handleEdit = () => {
     if (!post) return
@@ -79,7 +81,7 @@ export default function PostDetail() {
     const confirm = await Taro.showModal({
       title: '确认删除',
       content: '删除后不可恢复',
-      confirmColor: '#ec4899',
+      confirmColor: '#668F80',
     })
     if (!confirm.confirm) return
     Taro.showLoading({ title: '删除中…', mask: true })
@@ -138,8 +140,11 @@ export default function PostDetail() {
 
   if (loading || !post) {
     return (
-      <View className="flex min-h-screen items-center justify-center bg-pink-50">
-        <Text className="text-sm text-pink-400">加载中…</Text>
+      <View
+        className="flex min-h-screen items-center justify-center"
+        style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+      >
+        <Text className="float-anim-slow" style={{ fontSize: px(64), color: '#C3B59F' }}>◌</Text>
       </View>
     )
   }
@@ -149,13 +154,24 @@ export default function PostDetail() {
   const canMarkRead = post.type === 'report' && !isMine && !post.readAt
 
   return (
-    <ScrollView scrollY className="flex min-h-screen flex-col bg-pink-50">
-      <View className="px-4 pb-6 pt-4">
-        <View className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <ScrollView
+      scrollY
+      className="min-h-screen"
+      style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+    >
+      <View className="px-4 pb-8 pt-4">
+        {/* 主内容卡片 */}
+        <View
+          className="rounded-2xl bg-white p-4"
+          style={{
+            border: '1px solid rgba(195,181,159,0.5)',
+            boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.08)`,
+          }}
+        >
           <HeaderRow post={post} isMine={isMine} />
 
           {post.tags.length > 0 ? (
-            <View className="flex flex-wrap gap-1.5">
+            <View className="mt-3 flex flex-wrap gap-1.5">
               {post.tags.map((t) => (
                 <TagChip key={t} name={t} />
               ))}
@@ -163,23 +179,40 @@ export default function PostDetail() {
           ) : null}
 
           {post.text ? (
-            <Text className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+            <Text
+              className="mt-3 whitespace-pre-wrap text-sm leading-relaxed"
+              style={{ color: '#4A6670' }}
+            >
               {post.text}
             </Text>
           ) : null}
 
-          {post.images.length > 0 ? <ImageGrid post={post} /> : null}
+          {post.images.length > 0 ? (
+            <View className="mt-3">
+              <ImageGrid post={post} />
+            </View>
+          ) : null}
 
+          {/* 报备阅读状态 */}
           {post.type === 'report' ? (
-            <View className="mt-1 flex items-center justify-between rounded-lg bg-pink-50 px-3 py-2">
-              <Text className="text-xs text-gray-600">阅读状态</Text>
+            <View
+              className="mt-3 flex items-center justify-between rounded-xl px-3 py-2"
+              style={{ backgroundColor: 'rgba(195,181,159,0.12)', border: '1px solid rgba(195,181,159,0.35)' }}
+            >
+              <Text className="text-xs" style={{ color: '#668F80' }}>阅读状态</Text>
               {post.readAt ? (
-                <Text className="text-xs text-emerald-600">
+                <Text className="text-xs" style={{ color: '#A0AF84' }}>
                   已阅 · {formatAbsolute(post.readAt)}
                 </Text>
               ) : canMarkRead ? (
                 <Button
-                  className="!m-0 rounded-full bg-pink-500 px-4 py-0 text-xs text-white"
+                  className="!m-0 rounded-full px-4 py-0 text-xs text-white"
+                  style={{
+                    fontSize: px(22),
+                    height: px(56),
+                    lineHeight: px(56),
+                    backgroundColor: '#668F80',
+                  }}
                   size="mini"
                   loading={readSubmitting}
                   disabled={readSubmitting}
@@ -188,74 +221,100 @@ export default function PostDetail() {
                   标记已阅
                 </Button>
               ) : (
-                <Text className="text-xs text-amber-500">未阅</Text>
+                <Text className="text-xs" style={{ color: '#D6A2AD' }}>未阅</Text>
               )}
             </View>
           ) : null}
 
+          {/* 编辑/删除 */}
           {isMine ? (
-            <View className="mt-1 flex gap-2">
-              <Button
-                className="!m-0 flex-1 rounded-full bg-pink-500 text-sm text-white"
-                size="mini"
+            <View className="mt-3 flex gap-2">
+              <View
+                className="flex-1 flex items-center justify-center rounded-full py-2"
+                style={{ backgroundColor: '#668F80' }}
                 onClick={handleEdit}
               >
-                编辑
-              </Button>
-              <Button
-                className="!m-0 flex-1 rounded-full bg-white text-sm text-pink-500 ring-1 ring-pink-200"
-                size="mini"
+                <Text className="text-sm font-medium text-white">编辑</Text>
+              </View>
+              <View
+                className="flex-1 flex items-center justify-center rounded-full py-2"
+                style={{ border: '1px solid rgba(214,162,173,0.6)', backgroundColor: 'rgba(214,162,173,0.08)' }}
                 onClick={handleDelete}
               >
-                删除
-              </Button>
+                <Text className="text-sm font-medium" style={{ color: '#D6A2AD' }}>删除</Text>
+              </View>
             </View>
           ) : null}
         </View>
 
-        <View className="mt-3 flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-sm">
-          <Text className="text-sm font-medium text-gray-700">TA 的评价</Text>
+        {/* 评价卡片 */}
+        <View
+          className="mt-3 rounded-2xl bg-white p-4"
+          style={{
+            border: '1px solid rgba(195,181,159,0.5)',
+            boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.08)`,
+          }}
+        >
+          <View className="mb-2 flex items-center gap-1">
+            <Text style={{ fontSize: px(24), color: '#D6A2AD' }}>♡</Text>
+            <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>TA 的评价</Text>
+          </View>
+
           {post.evaluation ? (
-            <View className="rounded-lg bg-pink-50 p-3">
-              <Text className="whitespace-pre-wrap text-sm text-pink-700">
+            <View
+              className="rounded-xl p-3"
+              style={{ backgroundColor: 'rgba(195,181,159,0.12)', border: '1px solid rgba(195,181,159,0.35)' }}
+            >
+              <Text className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: '#4A6670' }}>
                 {post.evaluation.text}
               </Text>
-              <Text className="mt-1 text-[11px] text-gray-400">
+              <Text className="mt-1" style={{ fontSize: px(22), color: '#C3B59F' }}>
                 {formatRelative(post.evaluation.updatedAt)}
                 {post.evaluation.createdAt !== post.evaluation.updatedAt ? ' · 已编辑' : ''}
               </Text>
             </View>
           ) : canEvaluate ? (
-            <Text className="text-xs text-gray-400">还没评价，写一句吧 ↓</Text>
+            <Text className="text-xs" style={{ color: '#C3B59F' }}>还没评价，写一句吧 ↓</Text>
           ) : (
-            <Text className="text-xs text-gray-400">等 TA 来评价…</Text>
+            <Text className="text-xs" style={{ color: '#C3B59F' }}>等 TA 来评价…</Text>
           )}
 
           {canEvaluate ? (
-            <View className="mt-2 flex flex-col gap-2">
-              <Textarea
-                className="min-h-[72px] w-full rounded-lg border border-pink-100 p-2 text-sm text-gray-800"
-                value={evalText}
-                placeholder={post.evaluation ? '修改评价…' : '一句话给 TA 的回应'}
-                maxlength={EVALUATION_MAX}
-                onInput={(e) => setEvalText(e.detail.value)}
-                autoHeight
-              />
+            <View className="mt-3 flex flex-col gap-2">
+              <View
+                className="overflow-hidden rounded-xl p-3"
+                style={{ border: '1px solid rgba(102,143,128,0.35)', backgroundColor: 'rgba(195,181,159,0.08)' }}
+              >
+                <Textarea
+                  className="w-full"
+                  style={{ fontSize: px(28), color: '#4A6670', minHeight: px(120) }}
+                  value={evalText}
+                  placeholder={post.evaluation ? '修改评价…' : '一句话给 TA 的回应'}
+                  placeholderClass="textarea-placeholder"
+                  placeholderStyle={EVAL_PLACEHOLDER_STYLE}
+                  maxlength={EVALUATION_MAX}
+                  onInput={(e) => setEvalText(e.detail.value)}
+                  autoHeight
+                />
+              </View>
               <View className="flex items-center justify-between">
-                <Text className="text-[11px] text-gray-400">
+                <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
                   {evalText.length}/{EVALUATION_MAX}
                 </Text>
-                <Button
-                  className="!m-0 rounded-full bg-pink-500 px-4 text-xs text-white"
-                  size="mini"
-                  loading={evalSubmitting}
-                  disabled={evalSubmitting || evalText.trim().length === 0}
-                  onClick={handleSubmitEvaluation}
+                <View
+                  className="flex items-center justify-center rounded-full px-5"
+                  style={{
+                    height: px(64),
+                    backgroundColor: evalSubmitting || evalText.trim().length === 0 ? '#C3B59F' : '#668F80',
+                  }}
+                  onClick={evalSubmitting || evalText.trim().length === 0 ? undefined : handleSubmitEvaluation}
                 >
-                  {post.evaluation ? '更新' : '提交'}
-                </Button>
+                  <Text style={{ fontSize: px(26), color: '#fff' }}>
+                    {post.evaluation ? '更新' : '提交'}
+                  </Text>
+                </View>
               </View>
-              <Text className="text-[11px] text-gray-400">评价可以修改，但不能删除。</Text>
+              <Text style={{ fontSize: px(22), color: '#C3B59F' }}>评价可以修改，但不能删除。</Text>
             </View>
           ) : null}
         </View>
@@ -268,31 +327,46 @@ function HeaderRow({ post, isMine }: { post: PostDto; isMine: boolean }) {
   const authorAvatar = useRemoteImage(resolveAssetUrl(post.author.avatar))
   return (
     <View className="flex items-center gap-3">
-      <View className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
+      <View
+        className="overflow-hidden rounded-full bg-white"
+        style={{
+          width: px(80),
+          height: px(80),
+          border: '2px solid rgba(102,143,128,0.35)',
+        }}
+      >
         {authorAvatar ? (
           <Image src={authorAvatar} className="h-full w-full" mode="aspectFill" />
         ) : (
-          <View className="flex h-full w-full items-center justify-center text-lg text-pink-300">
-            <Text>♡</Text>
+          <View className="flex h-full w-full items-center justify-center">
+            <Text style={{ fontSize: px(36), color: '#D6A2AD' }}>♡</Text>
           </View>
         )}
       </View>
       <View className="flex flex-1 flex-col">
-        <View className="flex items-center gap-2">
-          <Text className="text-sm font-medium text-gray-800">{post.author.nickname}</Text>
+        <View className="flex items-center gap-1.5">
+          <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>{post.author.nickname}</Text>
           {isMine ? (
-            <Text className="rounded bg-pink-100 px-1.5 py-0.5 text-[10px] text-pink-500">我</Text>
+            <View
+              className="rounded px-1.5 py-0.5"
+              style={{ backgroundColor: 'rgba(102,143,128,0.15)' }}
+            >
+              <Text style={{ fontSize: px(20), color: '#668F80' }}>我</Text>
+            </View>
           ) : null}
           {post.type === 'report' ? (
-            <Text className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
-              报备
-            </Text>
+            <View
+              className="rounded px-1.5 py-0.5"
+              style={{ backgroundColor: 'rgba(160,175,132,0.2)' }}
+            >
+              <Text style={{ fontSize: px(20), color: '#A0AF84' }}>报备</Text>
+            </View>
           ) : null}
         </View>
-        <View className="flex items-center gap-2">
-          <Text className="text-[11px] text-pink-500">{formatRelative(post.happenedAt)}</Text>
-          <Text className="text-[10px] text-gray-300">·</Text>
-          <Text className="text-[10px] text-gray-400">{formatAbsolute(post.happenedAt)}</Text>
+        <View className="flex items-center gap-1.5">
+          <Text style={{ fontSize: px(22), color: '#668F80' }}>{formatRelative(post.happenedAt)}</Text>
+          <Text style={{ fontSize: px(20), color: '#C3B59F' }}>·</Text>
+          <Text style={{ fontSize: px(20), color: '#C3B59F' }}>{formatAbsolute(post.happenedAt)}</Text>
         </View>
       </View>
     </View>
@@ -303,14 +377,11 @@ function ImageGrid({ post }: { post: PostDto }) {
   const cols = post.images.length === 1 ? 1 : post.images.length <= 4 ? 2 : 3
   const previewImages = post.images.map((u) => resolveAssetUrl(u))
   const handlePreview = (idx: number) => {
-    Taro.previewImage({
-      current: previewImages[idx],
-      urls: previewImages,
-    }).catch(() => {})
+    Taro.previewImage({ current: previewImages[idx], urls: previewImages }).catch(() => {})
   }
   return (
     <View
-      className={`grid gap-1 ${
+      className={`grid gap-1.5 ${
         cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3'
       }`}
     >
@@ -338,14 +409,15 @@ function GridImage({
   const src = useRemoteImage(resolveAssetUrl(relative))
   return (
     <View
-      className={`overflow-hidden rounded-lg bg-pink-50 ${single ? 'aspect-[4/3]' : 'aspect-square'}`}
+      className={`overflow-hidden rounded-xl ${single ? 'aspect-[4/3]' : 'aspect-square'}`}
+      style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
       onClick={onTap}
     >
       {src ? (
         <Image src={src} className="h-full w-full" mode="aspectFill" />
       ) : (
-        <View className="flex h-full w-full items-center justify-center text-xs text-pink-300">
-          <Text>加载中</Text>
+        <View className="flex h-full w-full items-center justify-center">
+          <Text style={{ fontSize: px(28), color: '#C3B59F' }}>◌</Text>
         </View>
       )}
     </View>

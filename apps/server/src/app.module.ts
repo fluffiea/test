@@ -8,6 +8,7 @@ import { WinstonModule, utilities } from 'nest-winston';
 import * as winston from 'winston';
 import configuration, { type AppConfig } from './config/configuration';
 import { validationSchema } from './config/validation.schema';
+import { AnniversaryModule } from './modules/anniversary/anniversary.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { PostModule } from './modules/post/post.module';
@@ -76,6 +77,7 @@ import { SeedModule } from './seed/seed.module';
     UploadModule,
     TagModule,
     PostModule,
+    AnniversaryModule,
     HealthModule,
     SeedModule,
   ],
