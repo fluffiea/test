@@ -18,7 +18,9 @@ __exportStar(require("./api"), exports);
 __exportStar(require("./auth"), exports);
 __exportStar(require("./constants"), exports);
 __exportStar(require("./errors"), exports);
-__exportStar(require("./moment"), exports);
+__exportStar(require("./evaluation"), exports);
+__exportStar(require("./post"), exports);
+__exportStar(require("./tag"), exports);
 __exportStar(require("./upload"), exports);
 __exportStar(require("./user"), exports);
 //# sourceMappingURL=index.js.map

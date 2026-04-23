@@ -17,8 +17,15 @@ export declare const ErrorKey: {
     readonly E_UPLOAD_TYPE: "E_UPLOAD_TYPE";
     readonly E_UPLOAD_TOO_LARGE: "E_UPLOAD_TOO_LARGE";
     readonly E_UPLOAD_MISSING: "E_UPLOAD_MISSING";
-    readonly E_MOMENT_NOT_FOUND: "E_MOMENT_NOT_FOUND";
-    readonly E_MOMENT_FORBIDDEN: "E_MOMENT_FORBIDDEN";
+    readonly E_POST_NOT_FOUND: "E_POST_NOT_FOUND";
+    readonly E_POST_FORBIDDEN: "E_POST_FORBIDDEN";
+    readonly E_POST_TYPE_MISMATCH: "E_POST_TYPE_MISMATCH";
+    readonly E_EVAL_ONLY_PARTNER: "E_EVAL_ONLY_PARTNER";
+    readonly E_EVAL_NO_PARTNER: "E_EVAL_NO_PARTNER";
+    readonly E_TAG_DUPLICATE: "E_TAG_DUPLICATE";
+    readonly E_TAG_LIMIT: "E_TAG_LIMIT";
+    readonly E_TAG_PRESET_READONLY: "E_TAG_PRESET_READONLY";
+    readonly E_TAG_NOT_FOUND: "E_TAG_NOT_FOUND";
     readonly E_RATE_LIMIT: "E_RATE_LIMIT";
     readonly E_INTERNAL: "E_INTERNAL";
 };

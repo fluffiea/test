@@ -2,9 +2,12 @@ export default defineAppConfig({
   pages: [
     // 数组首项即冷启动首页；未登录会在 hydrate 后由各页面自行 reLaunch 到 login。
     'pages/index/index',
+    'pages/reports/index/index',
     'pages/me/index',
     'pages/login/index',
     'pages/moments/publish/index',
+    'pages/reports/publish/index',
+    'pages/posts/detail/index',
     'pages/me/change-password/index',
     'pages/me/edit-profile/index',
   ],
@@ -21,6 +24,7 @@ export default defineAppConfig({
     borderStyle: 'white',
     list: [
       { pagePath: 'pages/index/index', text: '日常' },
+      { pagePath: 'pages/reports/index/index', text: '报备' },
       { pagePath: 'pages/me/index', text: '我的' },
     ],
   },

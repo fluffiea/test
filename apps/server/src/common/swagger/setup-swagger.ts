@@ -14,7 +14,10 @@ export interface SwaggerOptions {
  *
  * 调用时机必须在 app.setGlobalPrefix 之后，否则 path 会带两次前缀。
  */
-export function setupSwagger(app: INestApplication, { path }: SwaggerOptions): void {
+export function setupSwagger(
+  app: INestApplication,
+  { path }: SwaggerOptions,
+): void {
   const config = new DocumentBuilder()
     .setTitle('momoya API')
     .setDescription('情侣日常记录小程序服务端 API')

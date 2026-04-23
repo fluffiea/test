@@ -10,7 +10,10 @@ import type { Type } from '@nestjs/common';
  * 因此对每个接口用 ApiResponseOf(SomeDataDto) 生成一个命名子类即可。
  */
 export class ApiResponseBaseDto {
-  @ApiProperty({ example: 0, description: '0 表示成功；非 0 为业务错误码，详见 errorKey' })
+  @ApiProperty({
+    example: 0,
+    description: '0 表示成功；非 0 为业务错误码，详见 errorKey',
+  })
   code!: number;
 
   @ApiProperty({ example: 'ok' })

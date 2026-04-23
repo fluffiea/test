@@ -15,7 +15,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ApiResponseBaseDto, ApiResponseOf } from '../../common/dto/api-response.dto';
+import {
+  ApiResponseBaseDto,
+  ApiResponseOf,
+} from '../../common/dto/api-response.dto';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -59,7 +62,8 @@ export class AuthController {
   @UseGuards(JwtRefreshGuard)
   @ApiOperation({
     summary: '用 refresh token 换一对新的 access/refresh',
-    description: 'refresh token 过期或被其他设备顶号后，本接口会返回 401，客户端应踢回登录页。',
+    description:
+      'refresh token 过期或被其他设备顶号后，本接口会返回 401，客户端应踢回登录页。',
   })
   @ApiBody({ type: RefreshDto })
   @ApiOkResponse({ type: ApiResponseOf(TokenPairDto) })

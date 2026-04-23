@@ -27,7 +27,7 @@ export class UserService {
     if (ids.length === 0) return Promise.resolve([]);
     return this.userModel
       .find(
-        { _id: { $in: ids as (string | Types.ObjectId)[] } },
+        { _id: { $in: ids } },
         { _id: 1, username: 1, nickname: 1, avatar: 1, createdAt: 1 },
       )
       .exec();
@@ -38,7 +38,10 @@ export class UserService {
   }
 
   /** 登录/改密后刷新会话与在线时间。传 null 可清除 session（登出）。 */
-  async updateSession(userId: Types.ObjectId | string, sessionId: string | null) {
+  async updateSession(
+    userId: Types.ObjectId | string,
+    sessionId: string | null,
+  ) {
     await this.userModel
       .updateOne(
         { _id: userId },

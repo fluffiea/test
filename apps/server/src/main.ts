@@ -46,7 +46,10 @@ async function bootstrap() {
   // 但写出来避免未来某次无意间改成 127.0.0.1）。
   await app.listen(port, '0.0.0.0');
 
-  logger.log(`momoya server listening on http://localhost:${port}/api/v1`, 'Bootstrap');
+  logger.log(
+    `momoya server listening on http://localhost:${port}/api/v1`,
+    'Bootstrap',
+  );
   logger.log(
     `  (LAN access) 手机真机调试请用电脑的局域网 IPv4 访问 :${port}，并放行 Windows 防火墙入站`,
     'Bootstrap',

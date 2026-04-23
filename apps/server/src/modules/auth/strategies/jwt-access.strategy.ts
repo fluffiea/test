@@ -8,7 +8,10 @@ import { UserService } from '../../user/user.service';
 import type { AuthUser, JwtPayload } from '../types/jwt-payload';
 
 @Injectable()
-export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
+export class JwtAccessStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-access',
+) {
   constructor(
     private readonly configService: ConfigService,
     private readonly userService: UserService,

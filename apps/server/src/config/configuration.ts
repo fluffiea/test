@@ -25,7 +25,8 @@ const parseBool = (value: string | undefined, fallback: boolean): boolean => {
 };
 
 export default (): AppConfig => {
-  const nodeEnv = (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development';
+  const nodeEnv =
+    (process.env.NODE_ENV as AppConfig['nodeEnv']) ?? 'development';
   return {
     nodeEnv,
     port: parseInt(process.env.PORT ?? '3000', 10),
@@ -38,8 +39,12 @@ export default (): AppConfig => {
     },
     upload: {
       dir: process.env.UPLOAD_DIR ?? './uploads',
-      staticBaseUrl: process.env.STATIC_BASE_URL ?? 'http://localhost:3000/static',
-      maxSizeBytes: parseInt(process.env.UPLOAD_MAX_SIZE_BYTES ?? '5242880', 10),
+      staticBaseUrl:
+        process.env.STATIC_BASE_URL ?? 'http://localhost:3000/static',
+      maxSizeBytes: parseInt(
+        process.env.UPLOAD_MAX_SIZE_BYTES ?? '5242880',
+        10,
+      ),
     },
     swagger: {
       enabled: parseBool(process.env.SWAGGER_ENABLED, nodeEnv !== 'production'),

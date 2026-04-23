@@ -165,6 +165,11 @@ export const api = {
     data?: unknown,
     opts?: Omit<RequestOptions, 'method' | 'data'>,
   ) => apiRequest<T>(url, { ...opts, method: 'PATCH', data }),
+  put: <T,>(
+    url: string,
+    data?: unknown,
+    opts?: Omit<RequestOptions, 'method' | 'data'>,
+  ) => apiRequest<T>(url, { ...opts, method: 'PUT', data }),
   delete: <T,>(url: string, opts?: Omit<RequestOptions, 'method' | 'data'>) =>
     apiRequest<T>(url, { ...opts, method: 'DELETE' }),
 }

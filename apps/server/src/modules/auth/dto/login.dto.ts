@@ -13,7 +13,9 @@ export class LoginDto implements LoginInputDto {
   @IsString()
   @MinLength(3)
   @MaxLength(32)
-  @Matches(/^[A-Za-z0-9_]+$/, { message: 'username 只能包含字母、数字和下划线' })
+  @Matches(/^[A-Za-z0-9_]+$/, {
+    message: 'username 只能包含字母、数字和下划线',
+  })
   username!: string;
 
   @ApiProperty({

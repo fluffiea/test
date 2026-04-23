@@ -13,7 +13,8 @@ export class HealthController {
   @Get()
   @ApiOperation({
     summary: '服务健康检查',
-    description: '返回服务端与 MongoDB 的连通状态，可用于容器 healthcheck 与上线 smoke test。',
+    description:
+      '返回服务端与 MongoDB 的连通状态，可用于容器 healthcheck 与上线 smoke test。',
   })
   @ApiOkResponse({ type: ApiResponseOf(HealthDataDto) })
   async check(): Promise<HealthDataDto> {

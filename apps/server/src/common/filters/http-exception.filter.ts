@@ -79,7 +79,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
 
       // 润色 platform-express 把 multer 错误转成的英文信息。
-      if (errorKey === ErrorKey.E_UPLOAD_TOO_LARGE && /^File too large$/i.test(msg)) {
+      if (
+        errorKey === ErrorKey.E_UPLOAD_TOO_LARGE &&
+        /^File too large$/i.test(msg)
+      ) {
         msg = '文件超过大小限制';
       } else if (
         httpStatus === HttpStatus.BAD_REQUEST &&

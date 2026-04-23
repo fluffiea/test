@@ -64,7 +64,9 @@ export class UserController {
     description: '用于时间轴顶部的「双人关系卡片」。未绑定 partner 返回 null。',
   })
   @ApiOkResponse({ type: ApiResponseOf(PartnerBriefDto) })
-  async getPartner(@CurrentUser() auth: AuthUser): Promise<PartnerBriefDto | null> {
+  async getPartner(
+    @CurrentUser() auth: AuthUser,
+  ): Promise<PartnerBriefDto | null> {
     const me = await this.userService.findById(auth.userId);
     if (!me) {
       throw new UnauthorizedException({
@@ -76,7 +78,8 @@ export class UserController {
     const partner = await this.userService.findById(me.partnerId);
     if (!partner) return null;
     // Mongoose `timestamps: true` 自动维护 createdAt；文档上无 @Prop 声明，用 unknown 透传 + toIsoString 收敛。
-    const createdAt: unknown = (partner as unknown as { createdAt?: unknown }).createdAt;
+    const createdAt: unknown = (partner as unknown as { createdAt?: unknown })
+      .createdAt;
     return {
       id: String(partner._id),
       username: partner.username,

@@ -1,10 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-  HttpException,
-  HttpStatus,
-  Module,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -53,7 +49,9 @@ const MIME_EXT_MAP: Record<string, string> = {
             },
           }),
           fileFilter: (_req, file, cb) => {
-            if (!(ALLOWED_IMAGE_MIME as readonly string[]).includes(file.mimetype)) {
+            if (
+              !(ALLOWED_IMAGE_MIME as readonly string[]).includes(file.mimetype)
+            ) {
               cb(
                 new HttpException(
                   {

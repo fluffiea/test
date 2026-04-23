@@ -6,7 +6,10 @@ import type { MeDto as MeShape } from '@momoya/shared';
  * 字段形状由 `@momoya/shared` 的 `MeDto` 接口约束，保证前后端类型一致。
  */
 export class MeDto implements MeShape {
-  @ApiProperty({ example: '65f1c2e4a1b2c3d4e5f67890', description: '用户 ObjectId 字符串' })
+  @ApiProperty({
+    example: '65f1c2e4a1b2c3d4e5f67890',
+    description: '用户 ObjectId 字符串',
+  })
   id!: string;
 
   @ApiProperty({ example: 'jiangjiang' })
@@ -17,7 +20,8 @@ export class MeDto implements MeShape {
 
   @ApiProperty({
     example: '',
-    description: '头像；空串表示使用前端默认占位，否则为 /static/... 相对路径或完整 URL',
+    description:
+      '头像；空串表示使用前端默认占位，否则为 /static/... 相对路径或完整 URL',
   })
   avatar!: string;
 
