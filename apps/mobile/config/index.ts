@@ -73,10 +73,13 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       // React dev 包，bundle 稍大）。详见 NervJS/taro#17350。
       debugReact: true,
       postcss: {
+        // 小程序端：px → rpx（按 750 设计稿），详见 .cursor/rules/styling-conventions.mdc
         pxtransform: {
           enable: true,
           config: {
-
+            platform: 'weapp',
+            designWidth: 750,
+            onePxTransform: true,
           }
         },
         cssModules: {
@@ -101,6 +104,27 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
         autoprefixer: {
           enable: true,
           config: {}
+        },
+        /*
+         * H5 端：px → rem，并配合 src/index.html 的根字号自适应脚本
+         *
+         * 关键约束：rootValue 必须与 weapp-tailwindcss rem2rpx 的基准对齐
+         *   - weapp-tailwindcss 默认 1rem = 32rpx（Tailwind 原生 1rem = 16px）
+         *   - 对应 rootValue = 32 → baseFontSize = 16
+         *   - index.html 脚本让 rootFontSize = 32 * viewportWidth / 750
+         *     @375 屏 = 16px，@414 屏 ≈ 17.66px
+         *   - 于是 Tailwind 类与自定义 px 在两端所有屏宽下视觉一致
+         */
+        pxtransform: {
+          enable: true,
+          config: {
+            platform: 'h5',
+            designWidth: 750,
+            onePxTransform: true,
+            baseFontSize: 16,
+            maxRootSize: 32,
+            minRootSize: 16,
+          }
         },
         cssModules: {
           enable: false, // 默认为 false，如需使用 css modules 功能，则设为 true

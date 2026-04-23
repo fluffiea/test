@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(3deg); }
+  66% { transform: translateY(-4px) rotate(-2deg); }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(5deg); }
+}
+
+.float-anim {
+  animation: float 3s ease-in-out infinite;
+}
+
+.float-anim-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+/*
+ * 登录页 Input 的 placeholder-class
+ * 所有长度按 750 设计稿标注（非视觉物理像素），由 postcss-pxtransform 两端各自换算：
+ *   - weapp: 32px → 32rpx（@375 屏 = 视觉 16px）
+ *   - h5:    32px → 1rem（配合 index.html 脚本 rootFontSize=16px @375 屏 → 视觉 16px）
+ */
+.login-input-placeholder {
+  color: #D6A2AD;
+  font-size: 32px;
+  line-height: 96px;
+  font-weight: 400;
+}
