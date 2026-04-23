@@ -17,6 +17,22 @@ const MIME_EXT_MAP: Record<string, string> = {
   'image/webp': '.webp',
 };
 
+function buildUploadParts(now: Date): {
+  dirSegments: [string, string, string];
+  basenamePrefix: string;
+} {
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return {
+    dirSegments: [yyyy, mm, dd],
+    basenamePrefix: `${yyyy}-${mm}-${dd}-${hh}-${min}-${ss}`,
+  };
+}
+
 @Module({
   imports: [
     AuthModule, // 需要 JwtAccessGuard
@@ -34,18 +50,18 @@ const MIME_EXT_MAP: Record<string, string> = {
         return {
           storage: diskStorage({
             destination: (_req, _file, cb) => {
-              const now = new Date();
-              const yyyy = String(now.getFullYear());
-              const mm = String(now.getMonth() + 1).padStart(2, '0');
-              const dir = path.join(baseDir, yyyy, mm);
+              const { dirSegments } = buildUploadParts(new Date());
+              const dir = path.join(baseDir, ...dirSegments);
               fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
             },
             filename: (_req, file, cb) => {
+              const { basenamePrefix } = buildUploadParts(new Date());
+              const shortId = uuidv4().replace(/-/g, '').slice(0, 8);
               const ext =
                 MIME_EXT_MAP[file.mimetype] ??
                 path.extname(file.originalname) ??
                 '';
-              cb(null, `${uuidv4()}${ext}`);
+              cb(null, `${basenamePrefix}-${shortId}${ext}`);
             },
           }),
           fileFilter: (_req, file, cb) => {

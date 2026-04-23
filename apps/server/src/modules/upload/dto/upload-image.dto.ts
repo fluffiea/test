@@ -16,13 +16,15 @@ export class UploadImageBodyDto {
 
 export class UploadImageResultDto implements UploadImageResultShape {
   @ApiProperty({
-    example: '/static/2026/04/3f3b8b9a-6e6e-4c6d-9e2d-8f9c7b1d3a0c.webp',
+    example:
+      '/static/2026/04/23/2026-04-23-14-05-30-a1b2c3d4.webp',
     description: '相对路径（挂在 STATIC_BASE_URL 下对外暴露）',
   })
   url!: string;
 
   @ApiProperty({
-    example: 'https://api.momoya.example.com/static/2026/04/3f3b8b9a.webp',
+    example:
+      'https://api.momoya.example.com/static/2026/04/23/2026-04-23-14-05-30-a1b2c3d4.webp',
     description: '拼好 STATIC_BASE_URL 的绝对地址，前端可直接使用',
   })
   absoluteUrl!: string;
