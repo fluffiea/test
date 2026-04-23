@@ -49,13 +49,19 @@ function buildUploadParts(now: Date): {
 
         return {
           storage: diskStorage({
-            destination: (_req, _file, cb) => {
-              const { dirSegments } = buildUploadParts(new Date());
+            // 同一次请求里 destination 和 filename 共用一个 Date，
+            // 避免跨秒边界时目录（yyyy/mm/dd）与文件名时间戳不一致。
+            destination: (req, _file, cb) => {
+              const r = req as { _uploadNow?: Date };
+              const now = r._uploadNow ?? (r._uploadNow = new Date());
+              const { dirSegments } = buildUploadParts(now);
               const dir = path.join(baseDir, ...dirSegments);
               fs.mkdir(dir, { recursive: true }, (err) => cb(err, dir));
             },
-            filename: (_req, file, cb) => {
-              const { basenamePrefix } = buildUploadParts(new Date());
+            filename: (req, file, cb) => {
+              const r = req as { _uploadNow?: Date };
+              const now = r._uploadNow ?? (r._uploadNow = new Date());
+              const { basenamePrefix } = buildUploadParts(now);
               const shortId = uuidv4().replace(/-/g, '').slice(0, 8);
               const ext =
                 MIME_EXT_MAP[file.mimetype] ??

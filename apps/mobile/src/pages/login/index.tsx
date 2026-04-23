@@ -8,27 +8,35 @@ import { useAuthStore } from '../../store/authStore'
 
 const ACCOUNTS = ['jiangjiang', 'mengmeng']
 
-/** 与 placeholder 视觉档位一致（约 16px），避免正文与占位符大小差太多 */
+/**
+ * 内联 style 里的尺寸走 Taro.pxTransform，参数是 750 设计稿标注值
+ * 详见 .cursor/rules/styling-conventions.mdc 三
+ */
+const px = (n: number) => Taro.pxTransform(n)
+
 const INPUT_INNER_STYLE = {
-  paddingLeft: 16,
-  paddingRight: 16,
-  height: 48,
-  fontSize: 16,
-  lineHeight: '48px',
+  paddingLeft: px(32),
+  paddingRight: px(32),
+  height: px(96),
+  fontSize: px(32),
+  lineHeight: px(96),
   color: '#4A6670',
 } as const
 
-/** 与 .login-input-placeholder 同档，双写：部分基础库对 placeholder-class 字号仍偏弱，style 可兜底 */
+/**
+ * placeholderStyle 是原生字符串，不走 PostCSS，也不走 Taro 运行时
+ * 详见 .cursor/rules/styling-conventions.mdc 四：直接写 px（物理像素）
+ */
 const PLACEHOLDER_STYLE = 'color:#D6A2AD;font-size:16px;line-height:48px;'
 
 const FLOATERS = [
-  { char: '✿', cls: 'float-anim', pos: { top: '6%', left: '7%' }, delay: '0s', size: 28, color: '#A0AF84' },
-  { char: '⊹', cls: 'float-anim-slow', pos: { top: '11%', right: '9%' }, delay: '0.8s', size: 18, color: '#668F80' },
-  { char: '❋', cls: 'float-anim', pos: { top: '18%', left: '14%' }, delay: '1.2s', size: 20, color: '#D6A2AD' },
-  { char: '◌', cls: 'float-anim-slow', pos: { top: '5%', right: '22%' }, delay: '0.4s', size: 36, color: '#C3B59F' },
-  { char: '✦', cls: 'float-anim', pos: { bottom: '20%', left: '4%' }, delay: '2s', size: 30, color: '#A0AF84' },
-  { char: '❋', cls: 'float-anim', pos: { bottom: '14%', right: '7%' }, delay: '1.6s', size: 22, color: '#668F80' },
-  { char: '✿', cls: 'float-anim-slow', pos: { bottom: '28%', right: '14%' }, delay: '0.2s', size: 16, color: '#D6A2AD' },
+  { char: '✿', cls: 'float-anim', pos: { top: '6%', left: '7%' }, delay: '0s', size: 56, color: '#A0AF84' },
+  { char: '⊹', cls: 'float-anim-slow', pos: { top: '11%', right: '9%' }, delay: '0.8s', size: 36, color: '#668F80' },
+  { char: '❋', cls: 'float-anim', pos: { top: '18%', left: '14%' }, delay: '1.2s', size: 40, color: '#D6A2AD' },
+  { char: '◌', cls: 'float-anim-slow', pos: { top: '5%', right: '22%' }, delay: '0.4s', size: 72, color: '#C3B59F' },
+  { char: '✦', cls: 'float-anim', pos: { bottom: '20%', left: '4%' }, delay: '2s', size: 60, color: '#A0AF84' },
+  { char: '❋', cls: 'float-anim', pos: { bottom: '14%', right: '7%' }, delay: '1.6s', size: 44, color: '#668F80' },
+  { char: '✿', cls: 'float-anim-slow', pos: { bottom: '28%', right: '14%' }, delay: '0.2s', size: 32, color: '#D6A2AD' },
 ]
 
 /** 下拉显隐只在子组件内 setState；memo 避免输入密码时父级重渲染带动用户名 Input 重绘 */
@@ -53,7 +61,7 @@ const UsernameField = memo(function UsernameField({
     <View className="relative">
       <View
         className="flex h-12 flex-row items-center overflow-hidden rounded-2xl"
-        style={{ background: '#F7F4EF', border: '1px solid #668F80' }}
+        style={{ background: 'rgba(195,181,159,0.15)', border: '1px solid #668F80' }}
       >
         <Input
           className="flex-1"
@@ -77,9 +85,9 @@ const UsernameField = memo(function UsernameField({
           className="absolute left-0 right-0 z-20 overflow-hidden rounded-2xl bg-white"
           style={{
             top: '100%',
-            marginTop: 6,
+            marginTop: px(12),
             border: '1px solid #C3B59F',
-            boxShadow: '0 4px 16px rgba(74,102,112,0.10)',
+            boxShadow: `0 ${px(8)} ${px(32)} rgba(74,102,112,0.10)`,
             opacity: menuOpen ? 1 : 0,
             visibility: menuOpen ? 'visible' : 'hidden',
             pointerEvents: menuOpen ? 'auto' : 'none',
@@ -90,7 +98,7 @@ const UsernameField = memo(function UsernameField({
               key={account}
               className="flex flex-row items-center gap-3 px-4"
               style={{
-                height: 48,
+                height: px(96),
                 borderBottom: idx < filteredAccounts.length - 1 ? '1px solid #C3B59F' : 'none',
               }}
               onClick={() => {
@@ -118,7 +126,7 @@ const PasswordField = memo(function PasswordField({
   return (
     <View
       className="flex h-12 flex-row items-center overflow-hidden rounded-2xl"
-      style={{ background: '#F7F4EF', border: '1px solid #668F80' }}
+      style={{ background: 'rgba(195,181,159,0.15)', border: '1px solid #668F80' }}
     >
       <Input
         className="flex-1"
@@ -191,13 +199,17 @@ export default function Login() {
   return (
     <View
       className="relative flex min-h-screen flex-col items-center justify-center px-6"
-      style={{ background: 'linear-gradient(160deg, #C3B59F 0%, #d9d0c2 50%, #e8e2d9 100%)' }}
+      style={{
+        // 仅使用色板内的 warm-sand，用透明度叠出层次（详见 .cursor/rules/color-palette.mdc）
+        background:
+          'linear-gradient(160deg, #C3B59F 0%, rgba(195,181,159,0.85) 50%, rgba(195,181,159,0.65) 100%)',
+      }}
     >
       {FLOATERS.map((f, i) => (
         <Text
           key={i}
           className={`pointer-events-none absolute ${f.cls}`}
-          style={{ ...f.pos, fontSize: f.size, color: f.color, animationDelay: f.delay }}
+          style={{ ...f.pos, fontSize: px(f.size), color: f.color, animationDelay: f.delay }}
         >
           {f.char}
         </Text>
@@ -205,13 +217,16 @@ export default function Login() {
 
       <View
         className="relative z-10 -mt-12 w-full rounded-3xl bg-white px-7 py-9"
-        style={{ border: '1px solid #C3B59F', boxShadow: '0 8px 32px rgba(74,102,112,0.12)' }}
+        style={{
+          border: '1px solid #C3B59F',
+          boxShadow: `0 ${px(16)} ${px(64)} rgba(74,102,112,0.12)`,
+        }}
       >
         <View className="mb-7 flex flex-col items-center gap-1">
           <View className="mb-1 flex flex-row items-center gap-2">
-            <Text style={{ fontSize: 20, color: '#A0AF84' }}>✿</Text>
+            <Text style={{ fontSize: px(40), color: '#A0AF84' }}>✿</Text>
             <Text className="text-2xl font-bold" style={{ color: '#4A6670' }}>欢迎回来</Text>
-            <Text style={{ fontSize: 20, color: '#A0AF84' }}>✿</Text>
+            <Text style={{ fontSize: px(40), color: '#A0AF84' }}>✿</Text>
           </View>
           <Text className="text-sm" style={{ color: '#668F80' }}>萌萌 & 江江的小站</Text>
         </View>
@@ -231,9 +246,9 @@ export default function Login() {
             <Button
               className="mt-2 w-full rounded-full font-semibold text-white"
               style={{
-                height: 48,
-                lineHeight: '48px',
-                fontSize: 15,
+                height: px(96),
+                lineHeight: px(96),
+                fontSize: px(30),
                 background: submitting ? '#A0AF84' : '#668F80',
                 letterSpacing: '0.04em',
               }}
@@ -247,9 +262,9 @@ export default function Login() {
         </Form>
 
         <View className="mt-5 flex flex-row items-center justify-center gap-1">
-          <Text style={{ fontSize: 12, color: '#C3B59F' }}>✦</Text>
+          <Text style={{ fontSize: px(24), color: '#C3B59F' }}>✦</Text>
           <Text className="text-xs" style={{ color: '#A0AF84' }}>只属于我们两个人的地方</Text>
-          <Text style={{ fontSize: 12, color: '#C3B59F' }}>✦</Text>
+          <Text style={{ fontSize: px(24), color: '#C3B59F' }}>✦</Text>
         </View>
       </View>
     </View>
