@@ -8,7 +8,7 @@
     "dev:shared": "pnpm --filter @momoya/shared dev",
     "dev:weapp": "pnpm --filter @momoya/mobile dev:weapp",
     "dev:server": "pnpm --filter @momoya/server start:dev",
-    "dev": "concurrently -n \"Shared,Taro,Nest\" -c \"yellow,blue,green\" \"pnpm dev:shared\" \"pnpm dev:weapp\" \"pnpm dev:server\"",
+    "dev": "pnpm build:shared && concurrently -n \"Shared,Taro,Nest\" -c \"yellow,blue,green\" \"pnpm dev:shared\" \"pnpm dev:weapp\" \"pnpm dev:server\"",
     "postinstall": "pnpm build:shared",
     "docker:dev:up": "docker compose up -d",
     "docker:dev:down": "docker compose down",

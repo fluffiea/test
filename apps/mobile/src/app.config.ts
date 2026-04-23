@@ -21,7 +21,10 @@ export default defineAppConfig({
     navigationBarTextStyle: 'black',
     backgroundColor: '#C3B59F',
   },
-  // tabBar：未选中 warm-sand，选中 teal-green，底色白
+  // tabBar：list 配置仍保留（weapp 要求有 list 才能用 switchTab 路由），
+  // 但 4 个 tab 页进入时会调 Taro.hideTabBar 把原生 tabBar 藏掉，
+  // 改由 <BottomTabBar /> 组件自己渲染，以便精确控制图标大小。
+  // 详见 src/components/BottomTabBar.tsx。
   tabBar: {
     color: '#C3B59F',
     selectedColor: '#668F80',

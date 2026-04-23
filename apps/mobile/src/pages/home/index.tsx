@@ -5,6 +5,8 @@ import type { AnniversaryDto } from '@momoya/shared'
 import { anniversaryApi } from '../../services/anniversary'
 import { ApiError } from '../../services/request'
 import { useAuthStore } from '../../store/authStore'
+import BottomTabBar from '../../components/BottomTabBar'
+import { useHiddenNativeTabBar } from '../../hooks/useHiddenNativeTabBar'
 import {
   computeAnniversaryStats,
   formatMonthDay,
@@ -32,6 +34,8 @@ const HEADER_FLOATERS = [
 ]
 
 export default function HomePage() {
+  useHiddenNativeTabBar()
+
   const user = useAuthStore((s) => s.user)
   const [items, setItems] = useState<AnniversaryDto[]>([])
   const [loading, setLoading] = useState(false)
@@ -65,8 +69,12 @@ export default function HomePage() {
     }
   }, [ensureAuthed])
 
-  useLoad(() => { void load() })
-  useDidShow(() => { void load() })
+  useLoad(() => {
+    void load()
+  })
+  useDidShow(() => {
+    void load()
+  })
 
   useEffect(() => {
     if (refreshTick === 0) return
@@ -148,6 +156,7 @@ export default function HomePage() {
           </View>
         )}
       </View>
+      <BottomTabBar current="home" />
     </View>
   )
 }
