@@ -1,12 +1,16 @@
-import { Button, Form, Input, Text, View } from '@tarojs/components'
+import { Button, Form, Input, Picker, Text, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { PASSWORD_MIN } from '@momoya/shared'
 import { ApiError } from '../../services/request'
 import { authApi } from '../../services/auth'
 import { useAuthStore } from '../../store/authStore'
 
-const ACCOUNTS = ['jiangjiang', 'mengmeng']
+const ACCOUNTS = ['jiangjiang', 'mengmeng'] as const
+
+/** 与原生 selector 首列一致；选 0 时用户名为空 */
+const ACCOUNT_PICK_PLACEHOLDER = '先选个要登的号'
+const ACCOUNT_PICKER_RANGE = [ACCOUNT_PICK_PLACEHOLDER, 'jiangjiang', 'mengmeng'] as const
 
 /**
  * 内联 style 里的尺寸走 Taro.pxTransform，参数是 750 设计稿标注值
@@ -14,20 +18,13 @@ const ACCOUNTS = ['jiangjiang', 'mengmeng']
  */
 const px = (n: number) => Taro.pxTransform(n)
 
-const INPUT_INNER_STYLE = {
-  paddingLeft: px(32),
-  paddingRight: px(32),
+/** 与 .login-field-row / .login-password-input 的横向 32px 分工：这里只管文案字号与行高 */
+const FIELD_TEXT_STYLE = {
   height: px(96),
   fontSize: px(32),
   lineHeight: px(96),
   color: '#4A6670',
 } as const
-
-/**
- * placeholderStyle 是原生字符串，不走 PostCSS，也不走 Taro 运行时
- * 详见 .cursor/rules/styling-conventions.mdc 四：直接写 px（物理像素）
- */
-const PLACEHOLDER_STYLE = 'color:#D6A2AD;font-size:16px;line-height:48px;'
 
 const FLOATERS = [
   { char: '✿', cls: 'float-anim', pos: { top: '6%', left: '7%' }, delay: '0s', size: 56, color: '#A0AF84' },
@@ -39,80 +36,38 @@ const FLOATERS = [
   { char: '✿', cls: 'float-anim-slow', pos: { bottom: '28%', right: '14%' }, delay: '0.2s', size: 32, color: '#D6A2AD' },
 ]
 
-/** 下拉显隐只在子组件内 setState；memo 避免输入密码时父级重渲染带动用户名 Input 重绘 */
-const UsernameField = memo(function UsernameField({
+/**
+ * 小程序原生 Picker，避免自定义 Input+blur+延迟关菜单 与下一项 Input 的聚焦竞争。
+ * 文案样式仅走 app.css 的 .login-input-placeholder 或正文色，不叠 placeholderStyle 以免真机抖。
+ */
+const AccountPickerField = memo(function AccountPickerField({
   value,
   onChange,
 }: {
-  value: string
-  onChange: (v: string) => void
+  value: number
+  onChange: (index: number) => void
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  const filteredAccounts = useMemo(
-    () =>
-      ACCOUNTS.filter((a) =>
-        value.trim() === '' ? true : a.includes(value.trim().toLowerCase()),
-      ),
-    [value],
-  )
-
   return (
-    <View className="relative">
+    <Picker
+      mode="selector"
+      range={[...ACCOUNT_PICKER_RANGE]}
+      value={value}
+      onChange={(e) => onChange(Number(e.detail.value))}
+    >
       <View
-        className="flex h-12 flex-row items-center overflow-hidden rounded-2xl"
+        className="login-field-row flex h-12 w-full flex-row items-center overflow-hidden rounded-2xl"
         style={{ background: 'rgba(195,181,159,0.15)', border: '1px solid #668F80' }}
       >
-        <Input
+        <Text
           className="flex-1"
-          style={INPUT_INNER_STYLE}
-          type="text"
-          placeholder="点我选一个～"
-          placeholderClass="login-input-placeholder"
-          placeholderStyle={PLACEHOLDER_STYLE}
-          value={value}
-          onInput={(e) => {
-            onChange(e.detail.value)
-            setMenuOpen(true)
-          }}
-          onFocus={() => setMenuOpen(true)}
-          onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
-          maxlength={32}
-        />
-      </View>
-      {filteredAccounts.length > 0 ? (
-        <View
-          className="absolute left-0 right-0 z-20 overflow-hidden rounded-2xl bg-white"
-          style={{
-            top: '100%',
-            marginTop: px(12),
-            border: '1px solid #C3B59F',
-            boxShadow: `0 ${px(8)} ${px(32)} rgba(74,102,112,0.10)`,
-            opacity: menuOpen ? 1 : 0,
-            visibility: menuOpen ? 'visible' : 'hidden',
-            pointerEvents: menuOpen ? 'auto' : 'none',
-          }}
+          style={value === 0 ? { ...FIELD_TEXT_STYLE, color: '#D6A2AD' } : FIELD_TEXT_STYLE}
         >
-          {filteredAccounts.map((account, idx) => (
-            <View
-              key={account}
-              className="flex flex-row items-center gap-3 px-4"
-              style={{
-                height: px(96),
-                borderBottom: idx < filteredAccounts.length - 1 ? '1px solid #C3B59F' : 'none',
-              }}
-              onClick={() => {
-                onChange(account)
-                setMenuOpen(false)
-              }}
-            >
-              <Text className="text-base">{account === 'mengmeng' ? '🌸' : '🌿'}</Text>
-              <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>{account}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-    </View>
+          {value === 0
+            ? ACCOUNT_PICK_PLACEHOLDER
+            : `${ACCOUNTS[value - 1] === 'mengmeng' ? '🌸 ' : '🌿 '}${ACCOUNTS[value - 1]}`}
+        </Text>
+      </View>
+    </Picker>
   )
 })
 
@@ -129,12 +84,10 @@ const PasswordField = memo(function PasswordField({
       style={{ background: 'rgba(195,181,159,0.15)', border: '1px solid #668F80' }}
     >
       <Input
-        className="flex-1"
-        style={INPUT_INNER_STYLE}
+        className="login-password-input flex-1"
         password
-        placeholder="只有你知道的秘密～"
+        placeholder="对一下你的暗号"
         placeholderClass="login-input-placeholder"
-        placeholderStyle={PLACEHOLDER_STYLE}
         value={value}
         onInput={(e) => onChange(e.detail.value)}
         maxlength={64}
@@ -144,13 +97,14 @@ const PasswordField = memo(function PasswordField({
 })
 
 export default function Login() {
-  const [username, setUsername] = useState('')
+  const [accountPickerIndex, setAccountPickerIndex] = useState(0)
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const loginToStore = useAuthStore((s) => s.login)
 
-  const setUsernameStable = useCallback((v: string) => setUsername(v), [])
   const setPasswordStable = useCallback((v: string) => setPassword(v), [])
+
+  const username = accountPickerIndex === 0 ? '' : ACCOUNTS[accountPickerIndex - 1]
 
   useLoad(() => {
     if (useAuthStore.getState().isAuthed()) {
@@ -171,7 +125,6 @@ export default function Login() {
     }
 
     setSubmitting(true)
-    Taro.showLoading({ title: '进入中…', mask: true })
     try {
       const result = await authApi.login({ username: u, password: p })
       loginToStore({
@@ -181,13 +134,11 @@ export default function Login() {
         refreshExpiresIn: result.refreshExpiresIn,
         user: result.user,
       })
-      Taro.hideLoading()
       Taro.showToast({ title: `欢迎回来，${result.user.nickname} ♡`, icon: 'success' })
       setTimeout(() => {
         Taro.reLaunch({ url: '/pages/home/index' })
       }, 600)
     } catch (err) {
-      Taro.hideLoading()
       const msg =
         err instanceof ApiError ? err.msg : err instanceof Error ? err.message : '登录失败'
       Taro.showToast({ title: msg, icon: 'none', duration: 2500 })
@@ -235,7 +186,7 @@ export default function Login() {
           <View className="flex flex-col gap-5">
             <View className="flex flex-col gap-2">
               <Text className="text-xs font-medium" style={{ color: '#4A6670' }}>你是谁呀 ✿</Text>
-              <UsernameField value={username} onChange={setUsernameStable} />
+              <AccountPickerField value={accountPickerIndex} onChange={setAccountPickerIndex} />
             </View>
 
             <View className="flex flex-col gap-2">

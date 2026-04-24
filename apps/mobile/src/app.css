@@ -30,6 +30,36 @@
   font-size: 32px;
   line-height: 96px;
   font-weight: 400;
+  font-synthesis: none;
+}
+
+/**
+ * 登录页 Picker 展示行与 .login-password-input 同左右 32px（设计稿）内边距，避免与 Tailwind pl-* 混用对不齐。
+ */
+.login-field-row {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/**
+ * 登录页密码：与 .login-input-placeholder 同款字号/行高/字重，经 postcss-pxtransform 与行内分离；
+ * 减轻真机安全输入时密文圆点、占位与「非聚焦」状态不一致的观感。
+ * 仅负责左右内边距；与 .login-field-row 的 32px 横向对齐一致。
+ */
+.login-password-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding-left: 32px;
+  padding-right: 32px;
+  color: #4A6670;
+  font-size: 32px;
+  line-height: 96px;
+  font-weight: 400;
+  font-synthesis: none;
 }
 
 /* 通用表单输入框 placeholder */
