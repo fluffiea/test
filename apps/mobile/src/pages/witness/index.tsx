@@ -3,8 +3,6 @@ import Taro, { useLoad } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import type { WitnessDefaultTab } from '@momoya/shared'
 import { useAuthStore } from '../../store/authStore'
-import BottomTabBar from '../../components/BottomTabBar'
-import { useHiddenNativeTabBar } from '../../hooks/useHiddenNativeTabBar'
 import DailyPanel from './DailyPanel'
 import ReportPanel from './ReportPanel'
 
@@ -16,8 +14,6 @@ const HEADER_FLOATERS = [
 ]
 
 export default function WitnessPage() {
-  useHiddenNativeTabBar()
-
   useLoad(() => {
     if (!useAuthStore.getState().isAuthed()) {
       Taro.reLaunch({ url: '/pages/login/index' })
@@ -87,7 +83,6 @@ export default function WitnessPage() {
       >
         <ReportPanel active={tab === 'report'} />
       </View>
-      <BottomTabBar current="witness" />
     </View>
   )
 }

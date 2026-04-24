@@ -1,9 +1,6 @@
 import { Text, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useAuthStore } from '../../store/authStore'
-import BottomTabBar from '../../components/BottomTabBar'
-import { useHiddenNativeTabBar } from '../../hooks/useHiddenNativeTabBar'
-
 const px = (n: number) => Taro.pxTransform(n)
 
 const FLOATERS = [
@@ -17,8 +14,6 @@ const FLOATERS = [
 ]
 
 export default function EchoPage() {
-  useHiddenNativeTabBar()
-
   useLoad(() => {
     if (!useAuthStore.getState().isAuthed()) {
       Taro.reLaunch({ url: '/pages/login/index' })
@@ -76,7 +71,6 @@ export default function EchoPage() {
           <Text style={{ fontSize: px(24), color: '#C3B59F' }}>✦</Text>
         </View>
       </View>
-      <BottomTabBar current="echo" />
     </View>
   )
 }
