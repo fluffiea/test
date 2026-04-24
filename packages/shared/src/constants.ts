@@ -55,6 +55,15 @@ export type PresetReportTag = (typeof PRESET_REPORT_TAGS)[number];
 export const EVALUATION_MIN = 1;
 export const EVALUATION_MAX = 200;
 
+/** 单条 post 下评论正文上限 */
+export const POST_COMMENT_MAX = 300;
+
+/** 列表卡片上预览的最早几条一级评论（按 createdAt 升序）；只预览、不承载操作 */
+export const POST_COMMENT_PREVIEW = 1;
+
+/** 详情页评论列表每页返回的一级评论条数（每条一级评论内联返回其全部未删回复）。 */
+export const POST_COMMENT_PAGE_SIZE = 10;
+
 // ---------- 色板 ----------
 
 /**

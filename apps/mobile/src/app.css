@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* 小程序页根高度：便于 tabBar 页用 h-full + flex + ScrollView 获得稳定可视高度，避免滚动手势异常 */
+page {
+  height: 100%;
+}
+
+/* H5：让页面根节点 h-full 能传到 #app，与 weapp 的 page { height:100% } 对齐 */
+html,
+body,
+#app {
+  height: 100%;
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   33% { transform: translateY(-8px) rotate(3deg); }

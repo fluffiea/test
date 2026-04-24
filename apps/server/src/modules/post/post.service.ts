@@ -9,6 +9,7 @@ import { Model, Types } from 'mongoose';
 import type {
   EvaluationDto,
   PostAuthorDto,
+  PostCommentDto,
   PostDto,
   PostListDto,
   PostType,
@@ -16,12 +17,16 @@ import type {
 } from '@momoya/shared';
 import {
   DAILY_TAG_MAX_PER_POST,
+  POST_COMMENT_MAX,
+  POST_COMMENT_PAGE_SIZE,
+  POST_COMMENT_PREVIEW,
   POST_IMAGE_MAX,
   POST_TEXT_MAX,
   REPORT_TAG_MAX,
   REPORT_TAG_MIN,
   TAG_NAME_MAX,
 } from '@momoya/shared';
+import type { PostCommentPageDto } from '@momoya/shared';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { toDate, toIsoString } from '../../common/utils/date';
 import { TagService } from '../tag/tag.service';
@@ -31,6 +36,7 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { ListPostsQueryDto } from './dto/list-posts.query.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Evaluation, EvaluationDocument } from './schemas/evaluation.schema';
+import { PostComment, PostCommentDocument } from './schemas/post-comment.schema';
 import { Post, PostDocument } from './schemas/post.schema';
 
 const DEFAULT_LIMIT = 20;
@@ -41,6 +47,8 @@ export class PostService {
     @InjectModel(Post.name) private readonly postModel: Model<PostDocument>,
     @InjectModel(Evaluation.name)
     private readonly evaluationModel: Model<EvaluationDocument>,
+    @InjectModel(PostComment.name)
+    private readonly postCommentModel: Model<PostCommentDocument>,
     private readonly userService: UserService,
     private readonly tagService: TagService,
   ) {}
@@ -79,7 +87,8 @@ export class PostService {
     });
 
     const authorMap = await this.loadAuthorMap([doc.authorId]);
-    return this.toDto(doc, authorMap, null);
+    const emptyComments = { comments: [] as PostCommentDto[], commentCount: 0 };
+    return this.toDto(doc, authorMap, null, emptyComments, authorId);
   }
 
   async update(
@@ -130,7 +139,20 @@ export class PostService {
 
     const authorMap = await this.loadAuthorMap([doc.authorId]);
     const evaluation = await this.loadEvaluation(String(doc._id));
-    return this.toDto(doc, authorMap, evaluation);
+    const commentBlock = await this.loadCommentBlockForPosts(
+      [doc._id],
+      authorId,
+    );
+    return this.toDto(
+      doc,
+      authorMap,
+      evaluation,
+      commentBlock.get(String(doc._id)) ?? {
+        comments: [],
+        commentCount: 0,
+      },
+      authorId,
+    );
   }
 
   async detail(
@@ -141,7 +163,260 @@ export class PostService {
     const doc = await this.mustFindVisiblePost(userId, partnerId, postId);
     const authorMap = await this.loadAuthorMap([doc.authorId]);
     const evaluation = await this.loadEvaluation(String(doc._id));
-    return this.toDto(doc, authorMap, evaluation);
+    const commentBlock = await this.loadCommentBlockForPosts(
+      [doc._id],
+      userId,
+    );
+    return this.toDto(
+      doc,
+      authorMap,
+      evaluation,
+      commentBlock.get(String(doc._id)) ?? {
+        comments: [],
+        commentCount: 0,
+      },
+      userId,
+    );
+  }
+
+  /**
+   * 对可见 daily post 发表一级评论或二级回复（作者或 partner 皆可）。
+   * 规则：
+   * - 仅 `type=daily` 允许评论；报备禁止。
+   * - `parentId` 若不为空，必须指向同 postId 下一条未删的一级评论，否则 depth/not-found。
+   */
+  async addComment(
+    userId: string,
+    partnerId: string | null,
+    postId: string,
+    text: string,
+    parentId: string | null | undefined,
+  ): Promise<PostCommentDto> {
+    const doc = await this.mustFindVisiblePost(userId, partnerId, postId);
+    if (doc.type !== 'daily') {
+      throw new BadRequestException({
+        message: '报备不支持评论',
+        errorKey: ErrorKey.E_POST_TYPE_MISMATCH,
+      });
+    }
+    const trimmed = text.trim();
+    if (!trimmed) {
+      throw new BadRequestException({
+        message: '评论不能为空',
+        errorKey: ErrorKey.E_VALIDATION,
+      });
+    }
+    if (trimmed.length > POST_COMMENT_MAX) {
+      throw new BadRequestException({
+        message: `评论过长（上限 ${POST_COMMENT_MAX}）`,
+        errorKey: ErrorKey.E_VALIDATION,
+      });
+    }
+
+    let parentObjectId: Types.ObjectId | null = null;
+    if (parentId) {
+      if (!Types.ObjectId.isValid(parentId)) {
+        throw new NotFoundException({
+          message: '父评论不存在',
+          errorKey: ErrorKey.E_POST_COMMENT_NOT_FOUND,
+        });
+      }
+      const parent = await this.postCommentModel.findById(parentId).exec();
+      if (
+        !parent ||
+        parent.deletedAt ||
+        String(parent.postId) !== String(doc._id)
+      ) {
+        throw new NotFoundException({
+          message: '父评论不存在',
+          errorKey: ErrorKey.E_POST_COMMENT_NOT_FOUND,
+        });
+      }
+      if (parent.parentId) {
+        throw new BadRequestException({
+          message: '回复不能再被回复',
+          errorKey: ErrorKey.E_POST_COMMENT_DEPTH,
+        });
+      }
+      parentObjectId = parent._id as Types.ObjectId;
+    }
+
+    const c = await this.postCommentModel.create({
+      postId: doc._id,
+      authorId: new Types.ObjectId(userId),
+      parentId: parentObjectId,
+      text: trimmed,
+    });
+
+    const authorMap = await this.loadAuthorMap([c.authorId]);
+    return this.toPostCommentDto(c, authorMap, userId, /*locked*/ false);
+  }
+
+  /** 编辑评论：仅作者本人可改，软锁/硬锁都不影响编辑；会打 `editedAt`。 */
+  async editComment(
+    userId: string,
+    partnerId: string | null,
+    postId: string,
+    commentId: string,
+    text: string,
+  ): Promise<PostCommentDto> {
+    const { postDoc, comment } = await this.mustFindVisibleComment(
+      userId,
+      partnerId,
+      postId,
+      commentId,
+    );
+    if (String(comment.authorId) !== userId) {
+      throw new ForbiddenException({
+        message: '只能编辑自己的评论',
+        errorKey: ErrorKey.E_POST_COMMENT_FORBIDDEN,
+      });
+    }
+    const trimmed = text.trim();
+    if (!trimmed) {
+      throw new BadRequestException({
+        message: '评论不能为空',
+        errorKey: ErrorKey.E_VALIDATION,
+      });
+    }
+    if (trimmed.length > POST_COMMENT_MAX) {
+      throw new BadRequestException({
+        message: `评论过长（上限 ${POST_COMMENT_MAX}）`,
+        errorKey: ErrorKey.E_VALIDATION,
+      });
+    }
+
+    if (trimmed !== comment.text) {
+      comment.text = trimmed;
+      comment.editedAt = new Date();
+      await comment.save();
+    }
+
+    const locked = comment.parentId
+      ? false
+      : await this.hasLiveReplies(comment._id as Types.ObjectId);
+    const authorMap = await this.loadAuthorMap([comment.authorId]);
+    void postDoc;
+    return this.toPostCommentDto(comment, authorMap, userId, locked);
+  }
+
+  /**
+   * 删除评论（软删）：
+   * - 回复：作者本人随时可删；
+   * - 一级评论：作者本人仅在**没有未删回复**时才可删；有回复返回 `E_POST_COMMENT_LOCKED`。
+   */
+  async removeComment(
+    userId: string,
+    partnerId: string | null,
+    postId: string,
+    commentId: string,
+  ): Promise<void> {
+    const { comment } = await this.mustFindVisibleComment(
+      userId,
+      partnerId,
+      postId,
+      commentId,
+    );
+    if (String(comment.authorId) !== userId) {
+      throw new ForbiddenException({
+        message: '只能删除自己的评论',
+        errorKey: ErrorKey.E_POST_COMMENT_FORBIDDEN,
+      });
+    }
+    if (!comment.parentId) {
+      const locked = await this.hasLiveReplies(comment._id as Types.ObjectId);
+      if (locked) {
+        throw new ForbiddenException({
+          message: '已有回复的一级评论只能编辑，不能删除',
+          errorKey: ErrorKey.E_POST_COMMENT_LOCKED,
+        });
+      }
+    }
+    comment.deletedAt = new Date();
+    await comment.save();
+  }
+
+  /**
+   * 详情页评论列表：按一级评论分页，每条一级评论内联返回其全部未删回复。
+   * cursor 结构为 `${createdAt.ms}_${_id.hex}`；按 createdAt 升序、_id 升序。
+   */
+  async listComments(
+    userId: string,
+    partnerId: string | null,
+    postId: string,
+    cursor: string | null,
+    limit: number,
+  ): Promise<PostCommentPageDto> {
+    const doc = await this.mustFindVisiblePost(userId, partnerId, postId);
+    const take = Math.min(Math.max(limit, 1), POST_COMMENT_PAGE_SIZE);
+
+    const mongo: Record<string, unknown> = {
+      postId: doc._id,
+      parentId: null,
+      deletedAt: null,
+    };
+    if (cursor) {
+      const parsed = parseCommentCursor(cursor);
+      if (parsed) {
+        mongo.$or = [
+          { createdAt: { $gt: parsed.ts } },
+          { createdAt: parsed.ts, _id: { $gt: parsed.id } },
+        ];
+      }
+    }
+
+    const rows = await this.postCommentModel
+      .find(mongo)
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(take + 1)
+      .exec();
+
+    const hasMore = rows.length > take;
+    const primaries = hasMore ? rows.slice(0, take) : rows;
+
+    let replies: PostCommentDocument[] = [];
+    if (primaries.length > 0) {
+      replies = await this.postCommentModel
+        .find({
+          parentId: { $in: primaries.map((p) => p._id) },
+          deletedAt: null,
+        })
+        .sort({ createdAt: 1, _id: 1 })
+        .exec();
+    }
+
+    const allAuthorIds: Types.ObjectId[] = [];
+    for (const c of [...primaries, ...replies]) {
+      allAuthorIds.push(c.authorId);
+    }
+    const authorMap = await this.loadAuthorMap(allAuthorIds);
+
+    const repliesByParent = new Map<string, PostCommentDocument[]>();
+    for (const r of replies) {
+      const key = String(r.parentId);
+      const arr = repliesByParent.get(key);
+      if (arr) arr.push(r);
+      else repliesByParent.set(key, [r]);
+    }
+
+    const items: PostCommentDto[] = primaries.map((p) => {
+      const rs = repliesByParent.get(String(p._id)) ?? [];
+      const primaryDto = this.toPostCommentDto(
+        p,
+        authorMap,
+        userId,
+        rs.length > 0,
+      );
+      primaryDto.replies = rs.map((r) =>
+        this.toPostCommentDto(r, authorMap, userId, /*locked*/ false),
+      );
+      return primaryDto;
+    });
+
+    const last = primaries[primaries.length - 1];
+    const nextCursor =
+      hasMore && last ? makeCommentCursor(last.createdAt, last._id as Types.ObjectId) : null;
+    return { items, nextCursor };
   }
 
   /**
@@ -201,9 +476,22 @@ export class PostService {
 
     const authorMap = await this.loadAuthorMap(items.map((p) => p.authorId));
     const evalMap = await this.loadEvaluationMap(items.map((p) => p._id));
+    const commentBlock = await this.loadCommentBlockForPosts(
+      items.map((p) => p._id),
+      userId,
+    );
 
     const dtoItems = items.map((p) =>
-      this.toDto(p, authorMap, evalMap.get(String(p._id)) ?? null),
+      this.toDto(
+        p,
+        authorMap,
+        evalMap.get(String(p._id)) ?? null,
+        {
+          comments: commentBlock.get(String(p._id))?.comments ?? [],
+          commentCount: commentBlock.get(String(p._id))?.commentCount ?? 0,
+        },
+        userId,
+      ),
     );
 
     const last = items[items.length - 1];
@@ -404,6 +692,156 @@ export class PostService {
     );
   }
 
+  /**
+   * 批量取每条 post 的：
+   * - 「最早 POST_COMMENT_PREVIEW 条**一级**评论」作为卡片预览；
+   * - 「未删评论总数（一级 + 回复）」作为 commentCount。
+   *
+   * 两件事在同一次 aggregate 里用 `$facet` 算完，减少往返。
+   */
+  private async loadCommentBlockForPosts(
+    postIds: Types.ObjectId[],
+    viewerId: string,
+  ): Promise<
+    Map<string, { comments: PostCommentDto[]; commentCount: number }>
+  > {
+    const out = new Map<
+      string,
+      { comments: PostCommentDto[]; commentCount: number }
+    >();
+    if (postIds.length === 0) return out;
+
+    type PreviewRow = {
+      _id: Types.ObjectId;
+      authorId: Types.ObjectId;
+      parentId: Types.ObjectId | null;
+      text: string;
+      createdAt: Date;
+      editedAt: Date | null;
+      postId: Types.ObjectId;
+    };
+    type CountRow = { _id: Types.ObjectId; count: number };
+
+    // 一级预览：每个 post 取最早 POST_COMMENT_PREVIEW 条一级评论
+    const previews = (await this.postCommentModel
+      .aggregate<PreviewRow>([
+        {
+          $match: {
+            postId: { $in: postIds },
+            deletedAt: null,
+            parentId: null,
+          },
+        },
+        { $sort: { postId: 1, createdAt: 1, _id: 1 } },
+        {
+          $group: {
+            _id: '$postId',
+            items: {
+              $push: {
+                _id: '$_id',
+                authorId: '$authorId',
+                parentId: '$parentId',
+                text: '$text',
+                createdAt: '$createdAt',
+                editedAt: '$editedAt',
+                postId: '$postId',
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            items: { $slice: ['$items', POST_COMMENT_PREVIEW] },
+          },
+        },
+        { $unwind: '$items' },
+        { $replaceRoot: { newRoot: '$items' } },
+      ])
+      .exec()) as PreviewRow[];
+
+    // 总数：一级 + 回复一起算
+    const counts = (await this.postCommentModel
+      .aggregate<CountRow>([
+        { $match: { postId: { $in: postIds }, deletedAt: null } },
+        { $group: { _id: '$postId', count: { $sum: 1 } } },
+      ])
+      .exec()) as CountRow[];
+
+    const countMap = new Map<string, number>();
+    for (const c of counts) countMap.set(String(c._id), c.count);
+
+    const authorIds = previews.map((p) => p.authorId);
+    const authorMap = await this.loadAuthorMap(authorIds);
+
+    const grouped = new Map<string, PreviewRow[]>();
+    for (const p of previews) {
+      const k = String(p.postId);
+      const arr = grouped.get(k);
+      if (arr) arr.push(p);
+      else grouped.set(k, [p]);
+    }
+
+    // 初始化所有 postId 条目（确保 count>0 但 preview 可能为空时也有总数可取）
+    const postIdKeys = new Set<string>([
+      ...grouped.keys(),
+      ...countMap.keys(),
+    ]);
+    for (const key of postIdKeys) {
+      const rows = grouped.get(key) ?? [];
+      const comments = rows.map((c) =>
+        this.toPostCommentDtoFromParts(c, authorMap, viewerId, false),
+      );
+      out.set(key, {
+        comments,
+        commentCount: countMap.get(key) ?? 0,
+      });
+    }
+
+    return out;
+  }
+
+  /** 某一级评论是否仍有未删回复。 */
+  private async hasLiveReplies(parentId: Types.ObjectId): Promise<boolean> {
+    const n = await this.postCommentModel
+      .countDocuments({ parentId, deletedAt: null })
+      .limit(1)
+      .exec();
+    return n > 0;
+  }
+
+  private async mustFindVisibleComment(
+    userId: string,
+    partnerId: string | null,
+    postId: string,
+    commentId: string,
+  ): Promise<{ postDoc: PostDocument; comment: PostCommentDocument }> {
+    const postDoc = await this.mustFindVisiblePost(userId, partnerId, postId);
+    if (postDoc.type !== 'daily') {
+      throw new BadRequestException({
+        message: '报备不支持评论',
+        errorKey: ErrorKey.E_POST_TYPE_MISMATCH,
+      });
+    }
+    if (!Types.ObjectId.isValid(commentId)) {
+      throw new NotFoundException({
+        message: '评论不存在',
+        errorKey: ErrorKey.E_POST_COMMENT_NOT_FOUND,
+      });
+    }
+    const comment = await this.postCommentModel.findById(commentId).exec();
+    if (
+      !comment ||
+      comment.deletedAt ||
+      String(comment.postId) !== String(postDoc._id)
+    ) {
+      throw new NotFoundException({
+        message: '评论不存在',
+        errorKey: ErrorKey.E_POST_COMMENT_NOT_FOUND,
+      });
+    }
+    return { postDoc, comment };
+  }
+
   private toEvaluationDto(doc: EvaluationDocument): EvaluationDto {
     return {
       id: String(doc._id),
@@ -415,13 +853,68 @@ export class PostService {
     };
   }
 
-  private toDto(
-    p: PostDocument,
+  /**
+   * 把单条评论文档转成 DTO。
+   * - `viewerId`：调用方用户 id；预览场景可传空字符串，此时 canEdit/canDelete 恒 false。
+   * - `locked`：该条评论是否处于「一级被回复锁定」状态（一级且有未删回复）。
+   *   对回复或无回复的一级评论传 false。
+   */
+  private toPostCommentDto(
+    c: PostCommentDocument,
     authorMap: Map<string, UserDocument>,
-    evaluation: EvaluationDto | null,
-  ): PostDto {
-    const author = authorMap.get(String(p.authorId));
-    const authorDto: PostAuthorDto = author
+    viewerId: string,
+    locked: boolean,
+  ): PostCommentDto {
+    return this.toPostCommentDtoFromParts(
+      {
+        _id: c._id as Types.ObjectId,
+        authorId: c.authorId,
+        parentId: (c.parentId as Types.ObjectId | null) ?? null,
+        text: c.text,
+        createdAt: c.createdAt,
+        editedAt: c.editedAt ?? null,
+      },
+      authorMap,
+      viewerId,
+      locked,
+    );
+  }
+
+  private toPostCommentDtoFromParts(
+    c: {
+      _id: Types.ObjectId;
+      authorId: Types.ObjectId;
+      parentId: Types.ObjectId | null;
+      text: string;
+      createdAt: Date;
+      editedAt: Date | null;
+    },
+    authorMap: Map<string, UserDocument>,
+    viewerId: string,
+    locked: boolean,
+  ): PostCommentDto {
+    const author = authorMap.get(String(c.authorId));
+    const mine = !!viewerId && String(c.authorId) === viewerId;
+    // 预览用（viewerId 空或无意义）直接降权，避免卡片误拿到操作权限
+    const canEdit = mine;
+    const canDelete = mine && !(c.parentId === null && locked);
+    return {
+      id: String(c._id),
+      author: this.toAuthorDto(author, c.authorId),
+      text: c.text,
+      parentId: c.parentId ? String(c.parentId) : null,
+      createdAt: toIsoString(c.createdAt),
+      editedAt: c.editedAt ? toIsoString(c.editedAt) : null,
+      canEdit,
+      canDelete,
+    };
+  }
+
+  private toAuthorDto(
+    author: UserDocument | undefined,
+    fallbackId: Types.ObjectId,
+  ): PostAuthorDto {
+    return author
       ? {
           id: String(author._id),
           username: author.username,
@@ -429,15 +922,26 @@ export class PostService {
           avatar: author.avatar,
         }
       : {
-          id: String(p.authorId),
+          id: String(fallbackId),
           username: '',
           nickname: '(未知用户)',
           avatar: '',
         };
+  }
+
+  private toDto(
+    p: PostDocument,
+    authorMap: Map<string, UserDocument>,
+    evaluation: EvaluationDto | null,
+    commentBlock: { comments: PostCommentDto[]; commentCount: number },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _viewerId: string,
+  ): PostDto {
+    const author = authorMap.get(String(p.authorId));
     return {
       id: String(p._id),
       type: p.type,
-      author: authorDto,
+      author: this.toAuthorDto(author, p.authorId),
       text: p.text,
       images: p.images,
       tags: p.tags,
@@ -446,6 +950,8 @@ export class PostService {
       updatedAt: toIsoString(p.updatedAt),
       readAt: p.readAt ? toIsoString(p.readAt) : null,
       evaluation,
+      comments: commentBlock.comments,
+      commentCount: commentBlock.commentCount,
     };
   }
 }
@@ -476,4 +982,15 @@ function parseCursor(raw: string): { ts: Date; id: Types.ObjectId } | null {
   const m = /^(\d+)_([a-fA-F0-9]{24})$/.exec(raw);
   if (!m) return null;
   return { ts: new Date(Number(m[1])), id: new Types.ObjectId(m[2]) };
+}
+
+/** 评论分页按 createdAt 升序，用同样的 `${ms}_${hex}` 格式即可复用 */
+function makeCommentCursor(createdAt: Date, id: Types.ObjectId): string {
+  return `${createdAt.getTime()}_${id.toHexString()}`;
+}
+
+function parseCommentCursor(
+  raw: string,
+): { ts: Date; id: Types.ObjectId } | null {
+  return parseCursor(raw);
 }

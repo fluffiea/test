@@ -1,11 +1,15 @@
 import type {
+  CreatePostCommentInputDto,
   CreatePostInputDto,
   EvaluationDto,
   ListPostsQueryDto,
   MarkReadResultDto,
   PostActionResultDto,
+  PostCommentDto,
+  PostCommentPageDto,
   PostDto,
   PostListDto,
+  UpdatePostCommentInputDto,
   UpdatePostInputDto,
   UpsertEvaluationInputDto,
 } from '@momoya/shared'
@@ -47,5 +51,25 @@ export const postApi = {
   },
   upsertEvaluation(id: string, input: UpsertEvaluationInputDto) {
     return api.put<EvaluationDto>(`/posts/${id}/evaluation`, input)
+  },
+  createComment(id: string, input: CreatePostCommentInputDto) {
+    return api.post<PostCommentDto>(`/posts/${encodeURIComponent(id)}/comments`, input)
+  },
+  listComments(id: string, params: { cursor?: string | null; limit?: number } = {}) {
+    const qs = buildQuery({ cursor: params.cursor ?? undefined, limit: params.limit })
+    return api.get<PostCommentPageDto>(
+      `/posts/${encodeURIComponent(id)}/comments${qs}`,
+    )
+  },
+  updateComment(id: string, commentId: string, input: UpdatePostCommentInputDto) {
+    return api.patch<PostCommentDto>(
+      `/posts/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`,
+      input,
+    )
+  },
+  deleteComment(id: string, commentId: string) {
+    return api.delete<PostActionResultDto>(
+      `/posts/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}`,
+    )
   },
 }

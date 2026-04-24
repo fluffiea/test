@@ -2,7 +2,7 @@ import { ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useCallback, useEffect } from 'react'
 import type { PostDto, ReportFilter } from '@momoya/shared'
-import PostCard from '../../components/PostCard'
+import { ReportPostCard } from '../../components/post-cards'
 import { postApi } from '../../services/post'
 import { ApiError } from '../../services/request'
 import { useAuthStore } from '../../store/authStore'
@@ -10,11 +10,54 @@ import { useReportStore } from '../../store/postFeedStore'
 
 const px = (n: number) => Taro.pxTransform(n)
 
+/** 顺序：待办 → 全量 → 我的；短文案避免与页头 pill 抢视觉 */
 const FILTERS: Array<{ key: ReportFilter; label: string }> = [
+  { key: 'unread', label: '待阅读' },
   { key: 'all', label: '全部' },
-  { key: 'unread', label: '未阅' },
-  { key: 'mine', label: '我发的' },
+  { key: 'mine', label: '我的' },
 ]
+
+function emptyListHint(f: ReportFilter): string {
+  if (f === 'unread') return '暂无需要你确认阅读的报备'
+  if (f === 'mine') return '你还没有发出过报备'
+  return '暂无报备'
+}
+
+/** 次级筛选：下划线指示，与页头「日常/报备」pill 区分层次 */
+function ReportFilterTab({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <View className="flex min-w-0 flex-1 flex-col items-center" onClick={onClick}>
+      <View className="flex w-full items-center justify-center py-2">
+        <Text
+          className="text-sm"
+          style={{
+            fontWeight: active ? '600' : '400',
+            color: active ? '#4A6670' : 'rgba(74,102,112,0.5)',
+          }}
+        >
+          {label}
+        </Text>
+      </View>
+      <View
+        style={{
+          height: px(4),
+          width: active ? px(34) : 0,
+          borderRadius: px(2),
+          backgroundColor: '#668F80',
+          opacity: active ? 1 : 0,
+        }}
+      />
+    </View>
+  )
+}
 
 interface Props {
   active: boolean
@@ -111,34 +154,26 @@ export default function ReportPanel({ active }: Props) {
   }
 
   return (
-    <View className="flex flex-1 flex-col">
-      {/* 筛选器 */}
-      <View className="flex items-center gap-2 px-4 py-2.5">
-        {FILTERS.map((f) => {
-          const isActive = f.key === filter
-          return (
-            <View
+    <View className="flex min-h-0 flex-1 flex-col">
+      {/* 报备列表视图：轻量下划线 Tab，避免与页头双 pill 堆叠显笨重 */}
+      <View
+        className="shrink-0 px-3 pb-1 pt-3"
+        style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(195,181,159,0.45)' }}
+      >
+        <View className="flex items-stretch">
+          {FILTERS.map((f) => (
+            <ReportFilterTab
               key={f.key}
-              className="rounded-full px-3 py-1"
-              style={{
-                backgroundColor: isActive ? '#668F80' : 'rgba(195,181,159,0.25)',
-                border: isActive ? 'none' : '1px solid rgba(195,181,159,0.5)',
-              }}
+              active={f.key === filter}
+              label={f.label}
               onClick={() => handleTapFilter(f.key)}
-            >
-              <Text
-                className="text-xs font-medium"
-                style={{ color: isActive ? '#fff' : '#4A6670' }}
-              >
-                {f.label}
-              </Text>
-            </View>
-          )
-        })}
+            />
+          ))}
+        </View>
       </View>
 
       <ScrollView
-        className="flex-1"
+        className="min-h-0 flex-1"
         scrollY
         enableBackToTop
         refresherEnabled
@@ -147,21 +182,17 @@ export default function ReportPanel({ active }: Props) {
         onScrollToLower={handleScrollToLower}
         lowerThreshold={80}
       >
-        <View className="flex flex-col gap-3 px-4 pb-24 pt-1">
+        <View className="flex flex-col gap-3 px-4 pb-24 pt-4">
           {items.length === 0 && !refreshing ? (
             <View className="mt-20 flex flex-col items-center gap-3">
               <Text style={{ fontSize: px(80), color: '#C3B59F' }}>✦</Text>
-              <Text className="text-sm" style={{ color: '#C3B59F' }}>
-                {filter === 'unread'
-                  ? '没有未阅的报备'
-                  : filter === 'mine'
-                  ? '还没有发过报备'
-                  : '还没有报备'}
+              <Text className="text-center text-sm" style={{ color: '#C3B59F' }}>
+                {emptyListHint(filter)}
               </Text>
             </View>
           ) : (
             items.map((p) => (
-              <PostCard
+              <ReportPostCard
                 key={p.id}
                 post={p}
                 isMine={!!user && p.author.id === user.id}

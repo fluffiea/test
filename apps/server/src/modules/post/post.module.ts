@@ -7,6 +7,7 @@ import { EvaluationService } from './evaluation.service';
 import { PostController } from './post.controller';
 import { PostService } from './post.service';
 import { Evaluation, EvaluationSchema } from './schemas/evaluation.schema';
+import { PostComment, PostCommentSchema } from './schemas/post-comment.schema';
 import { Post, PostSchema } from './schemas/post.schema';
 
 @Module({
@@ -14,6 +15,7 @@ import { Post, PostSchema } from './schemas/post.schema';
     MongooseModule.forFeature([
       { name: Post.name, schema: PostSchema },
       { name: Evaluation.name, schema: EvaluationSchema },
+      { name: PostComment.name, schema: PostCommentSchema },
     ]),
     AuthModule,
     UserModule,

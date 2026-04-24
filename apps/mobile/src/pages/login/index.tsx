@@ -207,7 +207,7 @@ export default function Login() {
               disabled={submitting}
               onClick={handleSubmit}
             >
-              进入小站 ✦
+              进入小站
             </Button>
           </View>
         </Form>

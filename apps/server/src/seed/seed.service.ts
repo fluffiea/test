@@ -7,6 +7,10 @@ import {
   AnniversaryService,
   makeCoupleKey,
 } from '../modules/anniversary/anniversary.service';
+import {
+  PostComment,
+  PostCommentDocument,
+} from '../modules/post/schemas/post-comment.schema';
 import { Post, PostDocument } from '../modules/post/schemas/post.schema';
 import { User, UserDocument } from '../modules/user/schemas/user.schema';
 
@@ -28,6 +32,8 @@ export class SeedService implements OnApplicationBootstrap {
     @InjectConnection() private readonly connection: Connection,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Post.name) private readonly postModel: Model<PostDocument>,
+    @InjectModel(PostComment.name)
+    private readonly postCommentModel: Model<PostCommentDocument>,
     private readonly anniversaryService: AnniversaryService,
   ) {}
 
@@ -96,7 +102,7 @@ export class SeedService implements OnApplicationBootstrap {
     const now = new Date();
     const minsAgo = (m: number) => new Date(now.getTime() - m * 60_000);
 
-    await this.postModel.create([
+    const posts = await this.postModel.create([
       {
         authorId: a._id,
         type: 'daily',
@@ -123,7 +129,24 @@ export class SeedService implements OnApplicationBootstrap {
       },
     ]);
 
-    this.logger.log('[seed] inserted sample posts (2 daily + 1 report)');
+    // 给首条 daily 塞一条一级评论 + 作者对该评论的一条回复，方便 UI 调试
+    const firstDaily = posts[0];
+    const primary = await this.postCommentModel.create({
+      postId: firstDaily._id,
+      authorId: b._id,
+      parentId: null,
+      text: '等你下班～',
+    });
+    await this.postCommentModel.create({
+      postId: firstDaily._id,
+      authorId: a._id,
+      parentId: primary._id,
+      text: '路上小心',
+    });
+
+    this.logger.log(
+      '[seed] inserted sample posts (2 daily + 1 report) + 1 primary comment + 1 reply on first daily',
+    );
   }
 
   /**

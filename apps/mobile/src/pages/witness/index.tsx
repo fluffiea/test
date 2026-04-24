@@ -36,7 +36,7 @@ export default function WitnessPage() {
   }, [defaultTab])
 
   return (
-    <View className="flex min-h-screen flex-col" style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}>
+    <View className="flex h-full min-h-0 flex-col" style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}>
       {/* 顶部 header + tab 切换 */}
       <View
         className="relative overflow-hidden px-5 pb-4 pt-7"
@@ -71,16 +71,10 @@ export default function WitnessPage() {
         两个子面板都保持挂载，避免切换时丢失滚动位置。
         非 active 的一方通过 prop 跳过自动刷新，用 inline style 控制显隐。
       */}
-      <View
-        className="flex-1 flex-col"
-        style={{ display: tab === 'daily' ? 'flex' : 'none' }}
-      >
+      <View className="flex min-h-0 flex-1 flex-col" style={{ display: tab === 'daily' ? 'flex' : 'none' }}>
         <DailyPanel active={tab === 'daily'} />
       </View>
-      <View
-        className="flex-1 flex-col"
-        style={{ display: tab === 'report' ? 'flex' : 'none' }}
-      >
+      <View className="flex min-h-0 flex-1 flex-col" style={{ display: tab === 'report' ? 'flex' : 'none' }}>
         <ReportPanel active={tab === 'report'} />
       </View>
     </View>

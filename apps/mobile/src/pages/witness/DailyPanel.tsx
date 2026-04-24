@@ -2,7 +2,7 @@ import { ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useCallback, useEffect } from 'react'
 import type { PostDto } from '@momoya/shared'
-import PostCard from '../../components/PostCard'
+import { DailyPostCard } from '../../components/post-cards'
 import { postApi } from '../../services/post'
 import { ApiError } from '../../services/request'
 import { useAuthStore } from '../../store/authStore'
@@ -97,9 +97,9 @@ export default function DailyPanel({ active }: Props) {
   }
 
   return (
-    <View className="flex flex-1 flex-col">
+    <View className="flex min-h-0 flex-1 flex-col">
       <ScrollView
-        className="flex-1"
+        className="min-h-0 flex-1"
         scrollY
         enableBackToTop
         refresherEnabled
@@ -118,7 +118,7 @@ export default function DailyPanel({ active }: Props) {
             </View>
           ) : (
             items.map((p) => (
-              <PostCard
+              <DailyPostCard
                 key={p.id}
                 post={p}
                 isMine={!!user && p.author.id === user.id}

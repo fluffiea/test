@@ -4,6 +4,7 @@ import type {
   MarkReadResultDto as MarkReadShape,
   PostActionResultDto as PostActionShape,
   PostAuthorDto as PostAuthorShape,
+  PostCommentDto as PostCommentShape,
   PostDto as PostShape,
   PostListDto as PostListShape,
   PostType,
@@ -24,7 +25,55 @@ export class PostAuthorDto implements PostAuthorShape {
   avatar!: string;
 }
 
-/** 评价的 Swagger 表示，此 DTO 仅用作内联返回；真正的 service 类型由 shared 约束。 */
+/** 评论的 Swagger 表示；实际 service 返回形状以 shared PostCommentDto 为准。 */
+export class PostCommentViewDto implements PostCommentShape {
+  @ApiProperty({ example: '65fa7b3c4d5e6f7a8b9c0d1e' })
+  id!: string;
+
+  @ApiProperty({ type: PostAuthorDto })
+  author!: PostAuthorDto;
+
+  @ApiProperty({ example: '好耶' })
+  text!: string;
+
+  @ApiProperty({
+    example: null,
+    nullable: true,
+    description: '父评论 id；null=一级评论；非 null=二级回复',
+  })
+  parentId!: string | null;
+
+  @ApiProperty({ example: '2026-04-22T23:35:00.000Z' })
+  createdAt!: string;
+
+  @ApiProperty({
+    example: null,
+    nullable: true,
+    description: '最近一次编辑时间；未编辑过为 null',
+  })
+  editedAt!: string | null;
+
+  @ApiProperty({ example: true })
+  canEdit!: boolean;
+
+  @ApiProperty({ example: true })
+  canDelete!: boolean;
+
+  @ApiPropertyOptional({
+    type: () => [PostCommentViewDto],
+    description: '一级评论下的所有未删回复；仅详情列表接口返回',
+  })
+  replies?: PostCommentShape[];
+}
+
+export class PostCommentPageViewDto {
+  @ApiProperty({ type: [PostCommentViewDto] })
+  items!: PostCommentViewDto[];
+
+  @ApiProperty({ example: null, nullable: true })
+  nextCursor!: string | null;
+}
+
 export class EvaluationViewDto implements EvaluationShape {
   @ApiProperty({ example: '65fa7b3c4d5e6f7a8b9c0d1e' })
   id!: string;
@@ -88,6 +137,18 @@ export class PostDto implements PostShape {
 
   @ApiPropertyOptional({ type: EvaluationViewDto, nullable: true })
   evaluation!: EvaluationShape | null;
+
+  @ApiPropertyOptional({
+    type: [PostCommentViewDto],
+    description: '按 createdAt 升序的最早几条评论（列表与详情均返回）',
+  })
+  comments?: PostCommentShape[];
+
+  @ApiPropertyOptional({
+    example: 2,
+    description: '未删除评论总数',
+  })
+  commentCount?: number;
 }
 
 export class PostListDto implements PostListShape {
