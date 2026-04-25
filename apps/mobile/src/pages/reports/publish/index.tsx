@@ -1,4 +1,4 @@
-import { Button, Image, Input, Picker, Text, Textarea, View } from '@tarojs/components'
+import { Button, Input, Picker, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useLoad, useRouter } from '@tarojs/taro'
 import { useEffect, useMemo, useState } from 'react'
 import type {
@@ -15,6 +15,7 @@ import {
   UPLOAD_MAX_SIZE_BYTES,
   USER_TAG_PER_USER_LIMIT,
 } from '@momoya/shared'
+import { EditPostSlotImage } from '../../../components/EditPostSlotImage'
 import TagChip from '../../../components/TagChip'
 import { postApi } from '../../../services/post'
 import { ApiError } from '../../../services/request'
@@ -23,6 +24,7 @@ import { uploadImage } from '../../../services/upload'
 import { useAuthStore } from '../../../store/authStore'
 import { useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute } from '../../../utils/time'
+import { previewPostImages } from '../../../utils/previewPostImages'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -261,9 +263,9 @@ export default function PublishReport() {
     setSlots((prev) => prev.filter((s) => s.localPath !== localPath))
   }
 
-  const handlePreviewSlot = (localPath: string) => {
-    const urls = slots.map((s) => s.localPath)
-    Taro.previewImage({ current: localPath, urls }).catch(() => {})
+  const handlePreviewSlot = (index: number) => {
+    const rels = slots.map((s) => (s.remoteUrl != null && s.remoteUrl !== '' ? s.remoteUrl : s.localPath))
+    void previewPostImages(rels, index)
   }
 
   const handleSubmit = async () => {
@@ -359,18 +361,19 @@ export default function PublishReport() {
         </View>
 
         <View className="mt-2 grid grid-cols-3 gap-2">
-          {slots.map((slot) => (
+          {slots.map((slot, idx) => (
             <View
               key={slot.localPath}
               className="relative aspect-square overflow-hidden rounded-xl"
               style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
             >
-              <Image
-                src={slot.localPath}
+              <View
                 className="h-full w-full"
-                mode="aspectFill"
-                onClick={() => handlePreviewSlot(slot.localPath)}
-              />
+                onClick={() => handlePreviewSlot(idx)}
+                catchMove
+              >
+                <EditPostSlotImage slot={slot} />
+              </View>
               {slot.uploading ? (
                 <View
                   className="absolute inset-0 flex items-center justify-center"

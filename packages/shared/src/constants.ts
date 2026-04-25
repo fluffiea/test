@@ -67,17 +67,18 @@ export const POST_COMMENT_PAGE_SIZE = 10;
 // ---------- 色板 ----------
 
 /**
- * tag chip 的预设调色板（Tailwind bg/文字颜色成对），前端按 `name` 哈希分配。
+ * tag chip 的预设调色板（背景/文字为十六进制），按 `name` 哈希选色。
+ * 使用内联样式而非 Tailwind 类名，避免 `POST_TAG_PALETTE` 只存在于 shared 包时构建无法扫到 `bg-pink-100` 等类导致小程序上无色。
  * 变更顺序会导致老 tag 换色；新增只追加不插队。
  */
 export const POST_TAG_PALETTE = [
-  { bg: 'bg-pink-100', text: 'text-pink-600' },
-  { bg: 'bg-orange-100', text: 'text-orange-600' },
-  { bg: 'bg-amber-100', text: 'text-amber-700' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { bg: 'bg-sky-100', text: 'text-sky-700' },
-  { bg: 'bg-violet-100', text: 'text-violet-700' },
-  { bg: 'bg-rose-100', text: 'text-rose-700' },
+  { bg: '#fce7f3', text: '#be185d' },
+  { bg: '#ffedd5', text: '#c2410c' },
+  { bg: '#fef3c7', text: '#b45309' },
+  { bg: '#d1fae5', text: '#047857' },
+  { bg: '#e0f2fe', text: '#0369a1' },
+  { bg: '#ede9fe', text: '#6d28d9' },
+  { bg: '#ffe4e6', text: '#be123c' },
 ] as const;
 
 /** 允许的图片 MIME 白名单（与后端 multer fileFilter、前端 chooseMedia 透出对齐） */

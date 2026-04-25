@@ -11,7 +11,9 @@ function hashString(s: string): number {
 }
 
 export interface TagPaletteEntry {
+  /** 背景色（#RRGGBB） */
   bg: string
+  /** 文字色（#RRGGBB） */
   text: string
 }
 

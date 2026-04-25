@@ -1,7 +1,7 @@
 import { Image, Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
 import { resolveAssetUrl } from '../../config'
 import { useRemoteImage } from '../../hooks/useRemoteImage'
+import { previewPostImages } from '../../utils/previewPostImages'
 import { formatAbsolute, formatRelative } from '../../utils/time'
 import TagChip from '../TagChip'
 import {
@@ -15,17 +15,13 @@ import {
 
 export type ReportPostCardProps = PostListCardBaseProps
 
-export function ReportPostCard({ post, isMine, onLongPress, onTap }: ReportPostCardProps) {
+export function ReportPostCard({ post, isMine: _isMine, onLongPress, onTap }: ReportPostCardProps) {
   const authorAvatarUrl = resolveAssetUrl(post.author.avatar)
   const authorSrc = useRemoteImage(authorAvatarUrl)
 
-  const previewImages = post.images.map((u) => resolveAssetUrl(u))
   const handlePreview = (idx: number) => {
-    if (previewImages.length === 0) return
-    Taro.previewImage({
-      current: previewImages[idx],
-      urls: previewImages,
-    }).catch(() => {})
+    if (post.images.length === 0) return
+    void previewPostImages(post.images, idx)
   }
 
   const cols = post.images.length === 1 ? 1 : post.images.length <= 4 ? 2 : 3
@@ -61,7 +57,6 @@ export function ReportPostCard({ post, isMine, onLongPress, onTap }: ReportPostC
             <Text className="truncate text-base font-semibold" style={{ color: C.deepSlate }}>
               {post.author.nickname}
             </Text>
-            {isMine ? <PostCardBadge label="我" sand /> : null}
             <PostCardBadge label="报备" />
           </View>
           <View className="flex flex-wrap items-center gap-1.5">

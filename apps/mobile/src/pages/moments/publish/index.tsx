@@ -1,4 +1,4 @@
-import { Button, Image, Input, Picker, Text, Textarea, View } from '@tarojs/components'
+import { Button, Input, Picker, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useLoad, useRouter } from '@tarojs/taro'
 import { useEffect, useMemo, useState } from 'react'
 import type { CreatePostInputDto, UpdatePostInputDto } from '@momoya/shared'
@@ -8,6 +8,7 @@ import {
   POST_TEXT_MAX as TEXT_MAX,
   UPLOAD_MAX_SIZE_BYTES,
 } from '@momoya/shared'
+import { EditPostSlotImage } from '../../../components/EditPostSlotImage'
 import TagChip from '../../../components/TagChip'
 import { postApi } from '../../../services/post'
 import { ApiError } from '../../../services/request'
@@ -15,6 +16,7 @@ import { uploadImage } from '../../../services/upload'
 import { useAuthStore } from '../../../store/authStore'
 import { useDailyStore } from '../../../store/postFeedStore'
 import { parseTagInput } from '../../../utils/tagInput'
+import { previewPostImages } from '../../../utils/previewPostImages'
 import { formatAbsolute } from '../../../utils/time'
 
 const px = (n: number) => Taro.pxTransform(n)
@@ -165,9 +167,9 @@ export default function PublishDaily() {
     setSlots((prev) => prev.filter((s) => s.localPath !== localPath))
   }
 
-  const handlePreviewSlot = (localPath: string) => {
-    const urls = slots.map((s) => s.localPath)
-    Taro.previewImage({ current: localPath, urls }).catch(() => {})
+  const handlePreviewSlot = (index: number) => {
+    const rels = slots.map((s) => (s.remoteUrl != null && s.remoteUrl !== '' ? s.remoteUrl : s.localPath))
+    void previewPostImages(rels, index)
   }
 
   const handleRemoveTag = (t: string) => {
@@ -269,18 +271,19 @@ export default function PublishDaily() {
 
         {/* 图片格 */}
         <View className="mt-2 grid grid-cols-3 gap-2">
-          {slots.map((slot) => (
+          {slots.map((slot, idx) => (
             <View
               key={slot.localPath}
               className="relative aspect-square overflow-hidden rounded-xl"
               style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
             >
-              <Image
-                src={slot.localPath}
+              <View
                 className="h-full w-full"
-                mode="aspectFill"
-                onClick={() => handlePreviewSlot(slot.localPath)}
-              />
+                onClick={() => handlePreviewSlot(idx)}
+                catchMove
+              >
+                <EditPostSlotImage slot={slot} />
+              </View>
               {slot.uploading ? (
                 <View
                   className="absolute inset-0 flex items-center justify-center"

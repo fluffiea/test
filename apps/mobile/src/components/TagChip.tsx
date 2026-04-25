@@ -28,10 +28,11 @@ export default function TagChip({
     : ''
   return (
     <View
-      className={`inline-flex items-center gap-1 rounded-full ${palette.bg} ${palette.text} ${base} ${ring}`}
+      className={`inline-flex items-center gap-1 rounded-full ${base} ${ring}`}
+      style={{ backgroundColor: palette.bg, color: palette.text }}
       onClick={onTap}
     >
-      <Text className={palette.text}>{name}</Text>
+      <Text style={{ color: palette.text }}>{name}</Text>
       {removable ? (
         <View
           className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/10"

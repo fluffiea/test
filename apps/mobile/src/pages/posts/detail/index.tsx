@@ -1,5 +1,5 @@
 import { Image, ScrollView, Text, Textarea, View } from '@tarojs/components'
-import Taro, { useLoad, useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, useLoad, useRouter } from '@tarojs/taro'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PostCommentDto, PostDto } from '@momoya/shared'
 import {
@@ -8,6 +8,12 @@ import {
   POST_COMMENT_PAGE_SIZE,
 } from '@momoya/shared'
 import TagChip from '../../../components/TagChip'
+import {
+  PostCardBadge,
+  PostCardThumbImage,
+  postCardColors as C,
+  postCardShellShadow,
+} from '../../../components/post-cards/shared'
 import { resolveAssetUrl } from '../../../config'
 import { useRemoteImage } from '../../../hooks/useRemoteImage'
 import { postApi } from '../../../services/post'
@@ -15,6 +21,7 @@ import { ApiError } from '../../../services/request'
 import { useAuthStore } from '../../../store/authStore'
 import { useDailyStore, useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute, formatRelative } from '../../../utils/time'
+import { previewPostImages } from '../../../utils/previewPostImages'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -91,30 +98,53 @@ export default function PostDetail() {
     [syncFeedStore],
   )
 
-  const loadPost = useCallback(async () => {
-    if (!postId) {
-      Taro.showToast({ title: '参数错误', icon: 'none' })
-      setTimeout(() => Taro.navigateBack(), 500)
-      return
-    }
-    setLoading(true)
-    try {
-      const p = await postApi.detail(postId)
-      setPost(p)
-      setEvalText(p.evaluation?.text ?? '')
-      if (p.readAt) autoMarkedRef.current = true
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.msg : '加载失败'
-      Taro.showToast({ title: msg, icon: 'none' })
-      setTimeout(() => Taro.navigateBack(), 500)
-    } finally {
-      setLoading(false)
-    }
+  /**
+   * silent：从子页（编辑）返回时刷新，不挡全屏 loading
+   * 与 publish 里 updateOne 的 store 同步无冲突；详情以接口为准
+   */
+  const loadPost = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent === true
+      if (!postId) {
+        Taro.showToast({ title: '参数错误', icon: 'none' })
+        setTimeout(() => Taro.navigateBack(), 500)
+        return
+      }
+      if (!silent) {
+        setLoading(true)
+      }
+      try {
+        const p = await postApi.detail(postId)
+        setPost(p)
+        setEvalText(p.evaluation?.text ?? '')
+        if (p.readAt) autoMarkedRef.current = true
+      } catch (err) {
+        if (!silent) {
+          const msg = err instanceof ApiError ? err.msg : '加载失败'
+          Taro.showToast({ title: msg, icon: 'none' })
+          setTimeout(() => Taro.navigateBack(), 500)
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false)
+        }
+      }
+    },
+    [postId],
+  )
+
+  /** 同一 postId 首次进页全量拉取；从编辑/报备页返回为静默刷新，避免数据过期 */
+  const isFirstPageShowThisIdRef = useRef(true)
+  useEffect(() => {
+    isFirstPageShowThisIdRef.current = true
   }, [postId])
 
-  useEffect(() => {
-    void loadPost()
-  }, [loadPost])
+  useDidShow(() => {
+    if (!postId) return
+    const first = isFirstPageShowThisIdRef.current
+    isFirstPageShowThisIdRef.current = false
+    void loadPost({ silent: !first })
+  })
 
   const loadFirstCommentsPage = useCallback(async () => {
     if (!postId) return
@@ -388,18 +418,21 @@ export default function PostDetail() {
           className="px-4 pt-4"
           style={{ paddingBottom: isDaily ? px(160) : px(32) }}
         >
-          {/* 主内容卡片 */}
+          {/* 主内容区：与 witness 列表中的 Daily/Report 卡片壳层、头图、正文、配图对齐 */}
           <View
-            className="rounded-2xl bg-white p-4"
+            className="flex flex-col gap-3 rounded-2xl p-4"
             style={{
-              border: '1px solid rgba(195,181,159,0.5)',
-              boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.08)`,
+              backgroundColor: '#ffffff',
+              borderWidth: 1,
+              borderStyle: 'solid',
+              borderColor: isReport ? 'rgba(195,181,159,0.45)' : 'rgba(195,181,159,0.38)',
+              boxShadow: postCardShellShadow(),
             }}
           >
-            <HeaderRow post={post} isMine={isMine} />
+            <PostDetailHeader post={post} />
 
-            {post.tags.length > 0 ? (
-              <View className="mt-3 flex flex-wrap gap-1.5">
+            {isReport && post.tags.length > 0 ? (
+              <View className="flex flex-wrap gap-1.5">
                 {post.tags.map((t) => (
                   <TagChip key={t} name={t} />
                 ))}
@@ -408,23 +441,23 @@ export default function PostDetail() {
 
             {post.text ? (
               <Text
-                className="mt-3 whitespace-pre-wrap text-sm leading-relaxed"
-                style={{ color: '#4A6670' }}
+                className={
+                  isDaily
+                    ? 'whitespace-pre-wrap text-sm leading-[1.75]'
+                    : 'whitespace-pre-wrap text-sm leading-relaxed'
+                }
+                style={{ color: C.deepSlate }}
               >
                 {post.text}
               </Text>
             ) : null}
 
-            {post.images.length > 0 ? (
-              <View className="mt-3">
-                <ImageGrid post={post} />
-              </View>
-            ) : null}
+            {post.images.length > 0 ? <PostImageGrid post={post} isDaily={isDaily} /> : null}
 
             {/* 报备阅读状态 */}
             {isReport ? (
               <View
-                className="mt-3 flex items-center justify-between rounded-xl px-3 py-2"
+                className="flex items-center justify-between rounded-xl px-3 py-2"
                 style={{ backgroundColor: 'rgba(195,181,159,0.12)', border: '1px solid rgba(195,181,159,0.35)' }}
               >
                 <Text className="text-xs" style={{ color: '#668F80' }}>阅读状态</Text>
@@ -453,23 +486,9 @@ export default function PostDetail() {
               </View>
             ) : null}
 
-            {/* 编辑/删除 */}
             {isMine ? (
-              <View className="mt-3 flex gap-2">
-                <View
-                  className="flex-1 flex items-center justify-center rounded-full py-2"
-                  style={{ backgroundColor: '#668F80' }}
-                  onClick={handleEdit}
-                >
-                  <Text className="text-sm font-medium text-white">编辑</Text>
-                </View>
-                <View
-                  className="flex-1 flex items-center justify-center rounded-full py-2"
-                  style={{ border: '1px solid rgba(214,162,173,0.6)', backgroundColor: 'rgba(214,162,173,0.08)' }}
-                  onClick={handleDelete}
-                >
-                  <Text className="text-sm font-medium" style={{ color: '#D6A2AD' }}>删除</Text>
-                </View>
+              <View className="flex w-full flex-row justify-end">
+                <PostOwnerActions onEdit={handleEdit} onDelete={handleDelete} />
               </View>
             ) : null}
           </View>
@@ -477,15 +496,18 @@ export default function PostDetail() {
           {/* 报备：评价卡片（必须已阅才可写） */}
           {isReport ? (
             <View
-              className="mt-3 rounded-2xl bg-white p-4"
+              className="mt-3 flex flex-col gap-3 rounded-2xl p-4"
               style={{
-                border: '1px solid rgba(195,181,159,0.5)',
-                boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.08)`,
+                backgroundColor: '#ffffff',
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: 'rgba(195,181,159,0.45)',
+                boxShadow: postCardShellShadow(),
               }}
             >
               <View className="mb-2 flex items-center gap-1">
                 <Text style={{ fontSize: px(24), color: '#D6A2AD' }}>♡</Text>
-                <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>TA 的评价</Text>
+                <Text className="text-sm font-medium" style={{ color: C.deepSlate }}>TA 的评价</Text>
               </View>
 
               {post.evaluation ? (
@@ -560,29 +582,43 @@ export default function PostDetail() {
           {/* 日常：完整评论列表（含回复） */}
           {isDaily ? (
             <View
-              className="mt-3 rounded-2xl bg-white p-4"
+              className="mt-3 flex flex-col gap-3 rounded-2xl p-4"
               style={{
-                border: '1px solid rgba(195,181,159,0.5)',
-                boxShadow: `0 ${px(4)} ${px(24)} rgba(74,102,112,0.08)`,
+                backgroundColor: '#ffffff',
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: 'rgba(195,181,159,0.38)',
+                boxShadow: postCardShellShadow(),
               }}
             >
-              <View className="flex items-center justify-between">
-                <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>
+              <View
+                className="flex items-center justify-between border-b border-solid pb-2.5"
+                style={{ borderBottomColor: 'rgba(195,181,159,0.3)' }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: C.deepSlate }}>
                   评论 · {post.commentCount ?? 0}
                 </Text>
                 {comments.length > 0 ? (
-                  <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
-                    长按评论可编辑/回复
+                  <Text className="text-xs" style={{ color: C.warmSand }}>
+                    长按可回复或编辑
                   </Text>
                 ) : null}
               </View>
 
               {comments.length === 0 && !commentsLoading ? (
-                <View className="py-6 text-center">
-                  <Text className="text-xs" style={{ color: '#C3B59F' }}>还没有评论，写第一条吧</Text>
+                <View
+                  className="rounded-xl px-4 py-5 text-center"
+                  style={{ backgroundColor: 'rgba(195,181,159,0.08)' }}
+                >
+                  <Text className="text-xs leading-relaxed" style={{ color: C.tealGreen }}>
+                    还没有评论
+                  </Text>
+                  <Text className="mt-1 text-xs" style={{ color: C.warmSand }}>
+                    从下方说点什么，写第一条吧
+                  </Text>
                 </View>
               ) : (
-                <View className="mt-2 flex flex-col gap-3">
+                <View className="flex flex-col gap-2.5">
                   {comments.map((c) => (
                     <CommentItem
                       key={c.id}
@@ -595,17 +631,20 @@ export default function PostDetail() {
 
               {commentsHasMore ? (
                 <View
-                  className="mt-3 flex items-center justify-center rounded-full py-2"
-                  style={{ backgroundColor: 'rgba(195,181,159,0.2)' }}
+                  className="flex items-center justify-center rounded-full border border-solid py-2.5"
+                  style={{
+                    backgroundColor: 'rgba(195,181,159,0.1)',
+                    borderColor: 'rgba(195,181,159,0.35)',
+                  }}
                   onClick={commentsLoading ? undefined : () => void loadMoreComments()}
                 >
-                  <Text className="text-xs" style={{ color: '#668F80' }}>
-                    {commentsLoading ? '加载中…' : '加载更多'}
+                  <Text className="text-xs font-medium" style={{ color: C.tealGreen }}>
+                    {commentsLoading ? '加载中…' : '加载更多评论'}
                   </Text>
                 </View>
               ) : comments.length > 0 ? (
-                <View className="mt-3 py-2 text-center">
-                  <Text style={{ fontSize: px(22), color: '#C3B59F' }}>到底啦 ♡</Text>
+                <View className="py-1 text-center">
+                  <Text className="text-xs" style={{ color: C.warmSand }}>没有更多了</Text>
                 </View>
               ) : null}
             </View>
@@ -618,16 +657,20 @@ export default function PostDetail() {
         <View
           className="shrink-0 border-t border-solid px-4 py-2.5"
           style={{
-            borderTopColor: 'rgba(195,181,159,0.45)',
-            backgroundColor: '#ffffff',
+            borderTopColor: 'rgba(195,181,159,0.35)',
+            backgroundColor: '#fffdfb',
+            boxShadow: `0 ${px(-4)} ${px(20)} rgba(74,102,112,0.05)`,
           }}
           onClick={openPrimaryInput}
         >
           <View
-            className="flex h-10 items-center rounded-full px-4"
-            style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}
+            className="flex h-10 items-center rounded-full border border-solid px-4"
+            style={{
+              backgroundColor: 'rgba(195,181,159,0.1)',
+              borderColor: 'rgba(195,181,159,0.35)',
+            }}
           >
-            <Text className="text-sm" style={{ color: '#C3B59F' }}>说点什么…</Text>
+            <Text className="text-sm" style={{ color: C.tealGreen }}>说点什么…</Text>
           </View>
         </View>
       ) : null}
@@ -650,103 +693,129 @@ export default function PostDetail() {
 
 // ---------- 子组件 ----------
 
-function HeaderRow({ post, isMine }: { post: PostDto; isMine: boolean }) {
+/** 与 witness 里 DailyPostCard / ReportPostCard 头图、标签区一致（操作入口放在主卡底部，避免头区拥挤） */
+function PostDetailHeader({ post }: { post: PostDto }) {
   const authorAvatar = useRemoteImage(resolveAssetUrl(post.author.avatar))
+
+  if (post.type === 'report') {
+    return (
+      <View className="flex items-center gap-3">
+        <View
+          className="h-10 w-10 shrink-0 overflow-hidden rounded-full"
+          style={{ backgroundColor: 'rgba(195,181,159,0.35)' }}
+        >
+          {authorAvatar ? (
+            <Image src={authorAvatar} className="h-full w-full" mode="aspectFill" />
+          ) : (
+            <View className="flex h-full w-full items-center justify-center">
+              <Text style={{ fontSize: px(36), color: C.rosePink }}>♡</Text>
+            </View>
+          )}
+        </View>
+        <View className="flex min-w-0 flex-1 flex-col gap-1">
+          <View className="flex flex-wrap items-center gap-2">
+            <Text className="truncate text-base font-semibold" style={{ color: C.deepSlate }}>
+              {post.author.nickname}
+            </Text>
+            <PostCardBadge label="报备" />
+          </View>
+          <View className="flex flex-wrap items-center gap-1.5">
+            <Text className="text-xs font-medium" style={{ color: C.tealGreen }}>
+              {formatRelative(post.happenedAt)}
+            </Text>
+            <Text className="text-xs" style={{ color: 'rgba(195,181,159,0.9)' }}>·</Text>
+            <Text className="text-xs" style={{ color: 'rgba(74,102,112,0.55)' }}>
+              {formatAbsolute(post.happenedAt)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View className="flex items-center gap-3">
       <View
-        className="overflow-hidden rounded-full bg-white"
-        style={{
-          width: px(80),
-          height: px(80),
-          border: '2px solid rgba(102,143,128,0.35)',
-        }}
+        className="h-10 w-10 shrink-0 overflow-hidden rounded-full"
+        style={{ backgroundColor: 'rgba(195,181,159,0.32)' }}
       >
         {authorAvatar ? (
           <Image src={authorAvatar} className="h-full w-full" mode="aspectFill" />
         ) : (
           <View className="flex h-full w-full items-center justify-center">
-            <Text style={{ fontSize: px(36), color: '#D6A2AD' }}>♡</Text>
+            <Text style={{ fontSize: px(32), color: C.rosePink }}>♡</Text>
           </View>
         )}
       </View>
-      <View className="flex flex-1 flex-col">
-        <View className="flex items-center gap-1.5">
-          <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>{post.author.nickname}</Text>
-          {isMine ? (
-            <View
-              className="rounded px-1.5 py-0.5"
-              style={{ backgroundColor: 'rgba(102,143,128,0.15)' }}
-            >
-              <Text style={{ fontSize: px(20), color: '#668F80' }}>我</Text>
-            </View>
-          ) : null}
-          {post.type === 'report' ? (
-            <View
-              className="rounded px-1.5 py-0.5"
-              style={{ backgroundColor: 'rgba(160,175,132,0.2)' }}
-            >
-              <Text style={{ fontSize: px(20), color: '#A0AF84' }}>报备</Text>
-            </View>
+      <View className="flex min-w-0 flex-1 flex-col" style={{ gap: px(4) }}>
+        <Text
+          className="truncate text-sm font-semibold leading-snug"
+          style={{ color: C.deepSlate }}
+        >
+          {post.author.nickname}
+        </Text>
+        <Text className="text-xs leading-none" style={{ color: C.tealGreen }}>
+          {formatRelative(post.happenedAt)}
+        </Text>
+      </View>
+      {post.tags.length > 0 ? (
+        <View
+          className="flex shrink-0 flex-wrap items-center justify-end gap-1.5"
+          style={{ maxWidth: '55%' }}
+        >
+          {post.tags.slice(0, 3).map((t) => (
+            <TagChip key={t} name={t} />
+          ))}
+          {post.tags.length > 3 ? (
+            <Text className="text-xs" style={{ color: 'rgba(74,102,112,0.5)' }}>
+              +{post.tags.length - 3}
+            </Text>
           ) : null}
         </View>
-        <View className="flex items-center gap-1.5">
-          <Text style={{ fontSize: px(22), color: '#668F80' }}>{formatRelative(post.happenedAt)}</Text>
-          <Text style={{ fontSize: px(20), color: '#C3B59F' }}>·</Text>
-          <Text style={{ fontSize: px(20), color: '#C3B59F' }}>{formatAbsolute(post.happenedAt)}</Text>
-        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function PostOwnerActions({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <View className="flex shrink-0 flex-row items-center gap-0.5">
+      <View className="px-0.5 py-0.5" onClick={onEdit} catchMove>
+        <Text className="text-xs" style={{ color: C.tealGreen }}>编辑</Text>
+      </View>
+      <Text className="text-xs" style={{ color: C.warmSand, opacity: 0.55 }}>·</Text>
+      <View className="px-0.5 py-0.5" onClick={onDelete} catchMove>
+        <Text className="text-xs" style={{ color: C.warmSand }}>删除</Text>
       </View>
     </View>
   )
 }
 
-function ImageGrid({ post }: { post: PostDto }) {
+function PostImageGrid({ post, isDaily }: { post: PostDto; isDaily: boolean }) {
   const cols = post.images.length === 1 ? 1 : post.images.length <= 4 ? 2 : 3
-  const previewImages = post.images.map((u) => resolveAssetUrl(u))
   const handlePreview = (idx: number) => {
-    Taro.previewImage({ current: previewImages[idx], urls: previewImages }).catch(() => {})
+    void previewPostImages(post.images, idx)
   }
   return (
     <View
-      className={`grid gap-1.5 ${
+      className={`grid ${isDaily ? 'gap-2' : 'gap-1'} ${
         cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3'
       }`}
     >
       {post.images.map((url, idx) => (
-        <GridImage
+        <PostCardThumbImage
           key={url + idx}
           relative={url}
           onTap={() => handlePreview(idx)}
           single={cols === 1}
         />
       ))}
-    </View>
-  )
-}
-
-function GridImage({
-  relative,
-  onTap,
-  single,
-}: {
-  relative: string
-  onTap: () => void
-  single: boolean
-}) {
-  const src = useRemoteImage(resolveAssetUrl(relative))
-  return (
-    <View
-      className={`overflow-hidden rounded-xl ${single ? 'aspect-[4/3]' : 'aspect-square'}`}
-      style={{ backgroundColor: 'rgba(195,181,159,0.15)' }}
-      onClick={onTap}
-    >
-      {src ? (
-        <Image src={src} className="h-full w-full" mode="aspectFill" />
-      ) : (
-        <View className="flex h-full w-full items-center justify-center">
-          <Text style={{ fontSize: px(28), color: '#C3B59F' }}>◌</Text>
-        </View>
-      )}
     </View>
   )
 }
@@ -764,36 +833,41 @@ function CommentItem({
   return (
     <View
       className="rounded-xl px-3 py-2.5"
-      style={{ backgroundColor: 'rgba(195,181,159,0.10)' }}
+      style={{
+        backgroundColor: 'rgba(195,181,159,0.14)',
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor: 'rgba(195,181,159,0.25)',
+      }}
     >
       <View className="flex items-start gap-2.5" onLongPress={() => onActions(comment)}>
         <View
-          className="shrink-0 overflow-hidden rounded-full"
-          style={{ width: px(56), height: px(56), backgroundColor: 'rgba(195,181,159,0.32)' }}
+          className="h-8 w-8 shrink-0 overflow-hidden rounded-full"
+          style={{ backgroundColor: 'rgba(195,181,159,0.32)' }}
         >
           {avatar ? (
             <Image src={avatar} className="h-full w-full" mode="aspectFill" />
           ) : (
             <View className="flex h-full w-full items-center justify-center">
-              <Text style={{ fontSize: px(22), color: '#D6A2AD' }}>♡</Text>
+              <Text style={{ fontSize: px(20), color: C.rosePink }}>♡</Text>
             </View>
           )}
         </View>
         <View className="min-w-0 flex-1">
-          <View className="flex items-center gap-1.5">
-            <Text className="text-xs font-semibold" style={{ color: '#668F80' }}>
+          <View className="flex flex-wrap items-center gap-1.5">
+            <Text className="text-xs font-semibold" style={{ color: C.tealGreen }}>
               {comment.author.nickname}
             </Text>
-            <Text style={{ fontSize: px(20), color: '#C3B59F' }}>
+            <Text className="text-xs" style={{ color: C.warmSand }}>
               {formatRelative(comment.createdAt)}
             </Text>
             {comment.editedAt ? (
-              <Text style={{ fontSize: px(20), color: '#C3B59F' }}>· 已编辑</Text>
+              <Text className="text-xs" style={{ color: C.warmSand }}>· 已编辑</Text>
             ) : null}
           </View>
           <Text
             className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed"
-            style={{ color: '#4A6670' }}
+            style={{ color: C.deepSlate }}
           >
             {comment.text}
           </Text>
@@ -802,8 +876,8 @@ function CommentItem({
 
       {replies.length > 0 ? (
         <View
-          className="ml-10 mt-2 flex flex-col gap-2 rounded-xl px-3 py-2"
-          style={{ backgroundColor: 'rgba(255,255,255,0.7)' }}
+          className="ml-6 mt-2.5 flex flex-col gap-2.5 border-l-2 border-solid pl-3"
+          style={{ borderLeftColor: 'rgba(102,143,128,0.28)' }}
         >
           {replies.map((r) => (
             <ReplyItem key={r.id} reply={r} onActions={onActions} />
@@ -822,27 +896,33 @@ function ReplyItem({
   onActions: (c: PostCommentDto) => void
 }) {
   return (
-    <View onLongPress={() => onActions(reply)}>
+    <View
+      onLongPress={() => onActions(reply)}
+      className="rounded-lg px-2.5 py-1.5"
+      style={{ backgroundColor: 'rgba(255,255,255,0.65)' }}
+    >
       <View className="flex flex-wrap items-center gap-1.5">
-        <Text className="text-xs font-semibold" style={{ color: '#668F80' }}>
+        <Text className="text-xs font-semibold" style={{ color: C.tealGreen }}>
           {reply.author.nickname}
         </Text>
-        <Text style={{ fontSize: px(20), color: '#C3B59F' }}>
+        <Text className="text-xs" style={{ color: C.warmSand }}>
           {formatRelative(reply.createdAt)}
         </Text>
         {reply.editedAt ? (
-          <Text style={{ fontSize: px(20), color: '#C3B59F' }}>· 已编辑</Text>
+          <Text className="text-xs" style={{ color: C.warmSand }}>· 已编辑</Text>
         ) : null}
       </View>
       <Text
         className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed"
-        style={{ color: '#4A6670' }}
+        style={{ color: C.deepSlate }}
       >
         {reply.text}
       </Text>
     </View>
   )
 }
+
+const IS_WEAPP = process.env.TARO_ENV === 'weapp'
 
 /** 底部评论输入 sheet：新建 / 回复 / 编辑共用 */
 function CommentInputSheet({
@@ -862,6 +942,8 @@ function CommentInputSheet({
   onCancel: () => void
   onSubmit: () => void
 }) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
   const title = useMemo(() => {
     if (target.kind === 'edit') return '编辑评论'
     if (target.kind === 'reply') return `回复 ${target.parent.author.nickname}`
@@ -869,6 +951,13 @@ function CommentInputSheet({
   }, [target])
 
   const canSubmit = value.trim().length > 0 && !submitting
+  const submitLabel =
+    submitting ? '提交中…' : target.kind === 'edit' ? '保存' : '发送'
+
+  const handleSubmitTap = () => {
+    if (!canSubmit) return
+    onSubmit()
+  }
 
   return (
     <>
@@ -878,19 +967,23 @@ function CommentInputSheet({
         onClick={onCancel}
       />
       <View
-        className="fixed bottom-0 left-0 right-0 flex flex-col gap-2 rounded-t-2xl px-4 pb-4 pt-3"
+        className="fixed left-0 right-0 flex flex-col gap-2.5 rounded-t-2xl px-4 pb-4 pt-3"
         style={{
+          // 键盘高度为屏幕 px；用字符串避免被当成设计稿数值转成 rpx
+          bottom: IS_WEAPP && keyboardHeight > 0 ? `${keyboardHeight}px` : 0,
           backgroundColor: '#ffffff',
           boxShadow: `0 ${px(-4)} ${px(24)} rgba(74,102,112,0.12)`,
         }}
+        catchMove
+        onClick={(e) => e.stopPropagation()}
       >
         <View className="flex items-center justify-between">
-          <Text className="text-sm font-medium" style={{ color: '#4A6670' }}>
+          <Text className="min-w-0 flex-1 pr-2 text-sm font-medium" style={{ color: C.deepSlate }}>
             {title}
           </Text>
           {/* 小程序：不要在 Text 上挂会切换 undefined 的 onClick，会触发 removeEventListener 崩溃 */}
           <View
-            className="flex items-center justify-end py-1 pl-3"
+            className="shrink-0 flex items-center justify-center py-2 pl-3"
             onClick={() => {
               if (submitting) return
               onCancel()
@@ -901,40 +994,56 @@ function CommentInputSheet({
             </Text>
           </View>
         </View>
-        <View
-          className="overflow-hidden rounded-xl p-3"
-          style={{ border: '1px solid rgba(102,143,128,0.35)', backgroundColor: 'rgba(195,181,159,0.08)' }}
-        >
-          <Textarea
-            className="w-full"
-            style={{ fontSize: px(28), color: '#4A6670', minHeight: px(100) }}
-            value={value}
-            placeholder={placeholder}
-            placeholderClass="textarea-placeholder"
-            placeholderStyle={COMMENT_PLACEHOLDER_STYLE}
-            maxlength={POST_COMMENT_MAX}
-            onInput={(e) => onChange(e.detail.value)}
-            autoHeight
-            focus
-          />
-        </View>
-        <View className="flex items-center justify-between">
-          <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
-            {value.length}/{POST_COMMENT_MAX}
-          </Text>
+        {/* 输入区与发送并排：避免被键盘顶栏 + 底栏按钮「夹住」，拇指更易点到发送 */}
+        <View className="flex flex-row items-end gap-2.5">
           <View
-            className="flex items-center justify-center rounded-full px-5"
+            className="min-w-0 flex-1 overflow-hidden rounded-xl px-3 pb-2 pt-2.5"
+            style={{ border: '1px solid rgba(102,143,128,0.35)', backgroundColor: 'rgba(195,181,159,0.08)' }}
+          >
+            <Textarea
+              className="w-full"
+              style={{ fontSize: px(28), color: C.deepSlate, minHeight: px(120) }}
+              value={value}
+              placeholder={placeholder}
+              placeholderClass="textarea-placeholder"
+              placeholderStyle={COMMENT_PLACEHOLDER_STYLE}
+              maxlength={POST_COMMENT_MAX}
+              onInput={(e) => onChange(e.detail.value)}
+              autoHeight
+              focus
+              fixed
+              adjustPosition={!IS_WEAPP}
+              showConfirmBar={false}
+              confirmType="send"
+              confirmHold={false}
+              cursorSpacing={72}
+              onKeyboardHeightChange={(e) => {
+                if (!IS_WEAPP) return
+                const h = typeof e.detail?.height === 'number' ? e.detail.height : 0
+                setKeyboardHeight(h)
+              }}
+              onBlur={() => {
+                if (IS_WEAPP) setKeyboardHeight(0)
+              }}
+              onConfirm={() => {
+                if (canSubmit) onSubmit()
+              }}
+            />
+            <Text className="mt-1" style={{ fontSize: px(22), color: '#C3B59F' }}>
+              {value.length}/{POST_COMMENT_MAX}
+            </Text>
+          </View>
+          <View
+            className="flex shrink-0 flex-col items-center justify-center rounded-2xl"
             style={{
-              height: px(64),
+              width: px(112),
+              minHeight: px(112),
               backgroundColor: canSubmit ? '#668F80' : '#C3B59F',
             }}
-            onClick={() => {
-              if (!canSubmit) return
-              onSubmit()
-            }}
+            onClick={handleSubmitTap}
           >
-            <Text style={{ fontSize: px(26), color: '#fff' }}>
-              {submitting ? '提交中…' : target.kind === 'edit' ? '保存' : '发送'}
+            <Text className="text-center font-medium" style={{ fontSize: px(28), color: '#fff', lineHeight: px(36) }}>
+              {submitLabel}
             </Text>
           </View>
         </View>
