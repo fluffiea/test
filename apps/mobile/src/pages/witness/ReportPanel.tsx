@@ -18,8 +18,8 @@ const FILTERS: Array<{ key: ReportFilter; label: string }> = [
 ]
 
 function emptyListHint(f: ReportFilter): string {
-  if (f === 'unread') return '暂无需要你确认阅读的报备'
-  if (f === 'mine') return '你还没有发出过报备'
+  if (f === 'unread') return '暂无待阅读'
+  if (f === 'mine') return '暂无我的报备'
   return '暂无报备'
 }
 
@@ -92,6 +92,7 @@ export default function ReportPanel({ active }: Props) {
     void reload()
   }, [active, reload])
 
+  /** 与 DailyPanel 一致：从详情等子页返回时页面 onShow 会触发，避免列表陈旧 */
   useDidShow(() => {
     if (!active) return
     void reload()
@@ -128,7 +129,8 @@ export default function ReportPanel({ active }: Props) {
 
   const handleLongPress = async (p: PostDto) => {
     if (!user || p.author.id !== user.id) return
-    const res = await Taro.showActionSheet({ itemList: ['编辑', '删除'] })
+    const res = await Taro.showActionSheet({ itemList: ['编辑', '删除'] }).catch(() => null)
+    if (!res) return
     if (res.tapIndex === 0) {
       Taro.navigateTo({ url: `/pages/reports/publish/index?id=${p.id}` })
       return
@@ -155,7 +157,6 @@ export default function ReportPanel({ active }: Props) {
 
   return (
     <View className="flex min-h-0 flex-1 flex-col">
-      {/* 报备列表视图：轻量下划线 Tab，避免与页头双 pill 堆叠显笨重 */}
       <View
         className="shrink-0 px-3 pb-1 pt-3"
         style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(195,181,159,0.45)' }}
@@ -182,7 +183,7 @@ export default function ReportPanel({ active }: Props) {
         onScrollToLower={handleScrollToLower}
         lowerThreshold={80}
       >
-        <View className="flex flex-col gap-3 px-4 pb-24 pt-4">
+        <View className="flex flex-col gap-2 px-4 pb-24 pt-3">
           {items.length === 0 && !refreshing ? (
             <View className="mt-20 flex flex-col items-center gap-3">
               <Text style={{ fontSize: px(80), color: '#C3B59F' }}>✦</Text>
@@ -191,15 +192,18 @@ export default function ReportPanel({ active }: Props) {
               </Text>
             </View>
           ) : (
-            items.map((p) => (
-              <ReportPostCard
-                key={p.id}
-                post={p}
-                isMine={!!user && p.author.id === user.id}
-                onLongPress={() => void handleLongPress(p)}
-                onTap={() => handleOpenDetail(p)}
-              />
-            ))
+            items.map((p) => {
+              const mine = !!user && p.author.id === user.id
+              return (
+                <ReportPostCard
+                  key={p.id}
+                  post={p}
+                  isMine={mine}
+                  onLongPress={() => void handleLongPress(p)}
+                  onTap={() => handleOpenDetail(p)}
+                />
+              )
+            })
           )}
 
           {loading ? (

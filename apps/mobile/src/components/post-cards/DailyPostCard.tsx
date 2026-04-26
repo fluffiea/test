@@ -130,16 +130,22 @@ export function DailyPostCard({ post, onLongPress, onTap }: DailyPostCardProps) 
   )
 }
 
-/** 单条评论预览：微信读书式「昵称：正文」单行展示，过长截断 */
+/** 单条评论预览：左「昵称：正文」截断，右相对时间（列表即可看到，不必进详情） */
 function CommentRow({ comment }: { comment: PostCommentDto }) {
+  const timeLabel = formatRelative(comment.createdAt)
   return (
-    <Text className="truncate text-xs leading-[1.55]" style={{ color: C.deepSlate }}>
-      <Text className="font-semibold" style={{ color: C.tealGreen }}>
-        {comment.author.nickname}
+    <View className="flex min-w-0 flex-row items-center gap-2">
+      <Text className="min-w-0 flex-1 truncate text-xs leading-[1.55]" style={{ color: C.deepSlate }}>
+        <Text className="font-semibold" style={{ color: C.tealGreen }}>
+          {comment.author.nickname}
+        </Text>
+        <Text style={{ color: 'rgba(74,102,112,0.55)' }}>：</Text>
+        {comment.text}
       </Text>
-      <Text style={{ color: 'rgba(74,102,112,0.55)' }}>：</Text>
-      {comment.text}
-    </Text>
+      <Text className="shrink-0 text-xs leading-none" style={{ color: C.warmSand }}>
+        {timeLabel}
+      </Text>
+    </View>
   )
 }
 

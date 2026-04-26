@@ -10,7 +10,11 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import type { UpdateMeInput, WitnessDefaultTab } from '@momoya/shared';
+import type {
+  ReportFilter,
+  UpdateMeInput,
+  WitnessDefaultTab,
+} from '@momoya/shared';
 import {
   ASSET_URL_PATTERN,
   BIO_MAX,
@@ -30,6 +34,15 @@ export class UpdateMeSettingsDto {
   @IsOptional()
   @IsEnum(['daily', 'report'])
   defaultWitnessTab?: WitnessDefaultTab;
+
+  @ApiPropertyOptional({
+    enum: ['all', 'unread', 'mine'],
+    example: 'unread',
+    description: '见证页报备列表默认筛选',
+  })
+  @IsOptional()
+  @IsEnum(['all', 'unread', 'mine'])
+  defaultReportListFilter?: ReportFilter;
 }
 
 /**

@@ -8,10 +8,20 @@
  * - 无单独创建 / 删除接口，仅一个 PUT /posts/:id/evaluation 做 UPSERT。
  */
 
+/** 与 PostAuthorDto 同形，供列表/详情展示「谁写的评价」 */
+export interface EvaluationAuthorDto {
+  id: string;
+  username: string;
+  nickname: string;
+  avatar: string;
+}
+
 export interface EvaluationDto {
   id: string;
   postId: string;
   authorId: string;
+  /** 评价撰写者（通常为收到报备一方的 partner） */
+  author: EvaluationAuthorDto;
   text: string;
   createdAt: string;
   updatedAt: string;

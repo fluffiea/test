@@ -1,3 +1,5 @@
+import type { ReportFilter } from './post';
+
 /** 见证页默认展示的子模块。用户偏好设置，落在 `User.settings` 里。 */
 export type WitnessDefaultTab = 'daily' | 'report';
 
@@ -12,8 +14,13 @@ export const WITNESS_DEFAULT_TAB_OPTIONS: ReadonlyArray<{
 
 /** 用户级偏好设置。之后有更多开关也加在这里。 */
 export interface UserSettingsDto {
-  /** 见证页首次进入时默认落在哪个子 tab */
+  /** 见证页首次进入时默认落在哪个子 tab；缺省见包内 `DEFAULT_WITNESS_TAB` */
   defaultWitnessTab: WitnessDefaultTab;
+  /**
+   * 见证页报备列表的默认筛选（待阅读 / 全部 / 我的）。
+   * 缺省见包内 `DEFAULT_REPORT_LIST_FILTER`（`witness-defaults`）。
+   */
+  defaultReportListFilter: ReportFilter;
 }
 
 /** 当前登录用户的基本信息，`GET /auth/me`、`PATCH /users/me` 都返回这个结构。 */

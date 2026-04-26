@@ -1,7 +1,7 @@
 import { Text, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
-import type { WitnessDefaultTab } from '@momoya/shared'
+import { DEFAULT_WITNESS_TAB, type WitnessDefaultTab } from '@momoya/shared'
 import { useAuthStore } from '../../store/authStore'
 import DailyPanel from './DailyPanel'
 import ReportPanel from './ReportPanel'
@@ -20,7 +20,7 @@ export default function WitnessPage() {
     }
   })
 
-  const defaultTab = useAuthStore((s) => s.user?.settings.defaultWitnessTab ?? 'daily')
+  const defaultTab = useAuthStore((s) => s.user?.settings.defaultWitnessTab ?? DEFAULT_WITNESS_TAB)
   const [tab, setTab] = useState<WitnessDefaultTab>(defaultTab)
 
   // 见证页是 tabBar 页面，切走再切回不会 unmount，useState 的初始值只会在首次 mount 时生效。

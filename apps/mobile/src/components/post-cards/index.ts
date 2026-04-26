@@ -6,7 +6,16 @@ export type { PostListCardBaseProps } from './shared'
 export {
   PostCardBadge,
   PostCardThumbImage,
+  ReportCardMetaHeader,
+  ReportStatusPill,
+  ReportTypeStamp,
   postCardColors,
   postCardPx,
   postCardShellShadow,
+  reportArchiveShadow,
+  reportCardBorderColor,
+  reportCardContentSurface,
+  reportEvaluationAccentStripStyle,
+  reportEvaluationCardShell,
+  reportFooterRailStyle,
 } from './shared'

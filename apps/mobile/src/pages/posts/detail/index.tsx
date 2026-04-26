@@ -9,10 +9,16 @@ import {
 } from '@momoya/shared'
 import TagChip from '../../../components/TagChip'
 import {
-  PostCardBadge,
   PostCardThumbImage,
+  ReportCardMetaHeader,
+  ReportStatusPill,
   postCardColors as C,
   postCardShellShadow,
+  reportArchiveShadow,
+  reportCardBorderColor,
+  reportCardContentSurface,
+  reportEvaluationAccentStripStyle,
+  reportEvaluationCardShell,
 } from '../../../components/post-cards/shared'
 import { resolveAssetUrl } from '../../../config'
 import { useRemoteImage } from '../../../hooks/useRemoteImage'
@@ -25,8 +31,8 @@ import { previewPostImages } from '../../../utils/previewPostImages'
 
 const px = (n: number) => Taro.pxTransform(n)
 
-const EVAL_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
-const COMMENT_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
+/** 评论 / 评价 sheet 内 Textarea 占位符（warm-sand） */
+const SHEET_TEXTAREA_PLACEHOLDER_STYLE = 'color:#C3B59F;font-size:14px;'
 
 /** sheet 输入框当前的目标（写一级评论 / 回复某条一级评论 / 编辑某条评论或回复） */
 type InputTarget =
@@ -37,6 +43,9 @@ type InputTarget =
 export default function PostDetail() {
   const router = useRouter()
   const postId = router.params.id ?? ''
+  /** 路由当前 id，用于丢弃过期的 detail / comments 请求结果 */
+  const postIdRef = useRef(postId)
+  postIdRef.current = postId
   const user = useAuthStore((s) => s.user)
   const dailyUpdate = useDailyStore((s) => s.updateOne)
   const dailyRemove = useDailyStore((s) => s.removeById)
@@ -46,9 +55,10 @@ export default function PostDetail() {
   const [post, setPost] = useState<PostDto | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 评价（仅报备）
+  // 评价（仅报备）：与日常评论一致，点按打开 Sheet，避免详情内常驻大输入框
   const [evalText, setEvalText] = useState('')
   const [evalSubmitting, setEvalSubmitting] = useState(false)
+  const [evalSheetOpen, setEvalSheetOpen] = useState(false)
 
   // 阅读（仅报备）
   const [readRetrying, setReadRetrying] = useState(false)
@@ -114,7 +124,9 @@ export default function PostDetail() {
         setLoading(true)
       }
       try {
-        const p = await postApi.detail(postId)
+        const requestedId = postId
+        const p = await postApi.detail(requestedId)
+        if (postIdRef.current !== requestedId) return
         setPost(p)
         setEvalText(p.evaluation?.text ?? '')
         if (p.readAt) autoMarkedRef.current = true
@@ -137,6 +149,10 @@ export default function PostDetail() {
   const isFirstPageShowThisIdRef = useRef(true)
   useEffect(() => {
     isFirstPageShowThisIdRef.current = true
+    autoMarkedRef.current = false
+    setEvalSheetOpen(false)
+    setEvalText('')
+    setPost((prev) => (prev && prev.id !== postId ? null : prev))
   }, [postId])
 
   useDidShow(() => {
@@ -149,10 +165,12 @@ export default function PostDetail() {
   const loadFirstCommentsPage = useCallback(async () => {
     if (!postId) return
     setCommentsLoading(true)
+    const requestedId = postId
     try {
-      const res = await postApi.listComments(postId, {
+      const res = await postApi.listComments(requestedId, {
         limit: POST_COMMENT_PAGE_SIZE,
       })
+      if (postIdRef.current !== requestedId) return
       setComments(res.items)
       setCommentsCursor(res.nextCursor)
       setCommentsHasMore(!!res.nextCursor)
@@ -167,11 +185,13 @@ export default function PostDetail() {
   const loadMoreComments = useCallback(async () => {
     if (!postId || commentsLoading || !commentsHasMore) return
     setCommentsLoading(true)
+    const requestedId = postId
     try {
-      const res = await postApi.listComments(postId, {
+      const res = await postApi.listComments(requestedId, {
         cursor: commentsCursor ?? undefined,
         limit: POST_COMMENT_PAGE_SIZE,
       })
+      if (postIdRef.current !== requestedId) return
       setComments((prev) => [...prev, ...res.items])
       setCommentsCursor(res.nextCursor)
       setCommentsHasMore(!!res.nextCursor)
@@ -202,7 +222,9 @@ export default function PostDetail() {
         const { readAt } = await postApi.markRead(post.id)
         setPost((prev) => (prev ? { ...prev, readAt } : prev))
         const next: PostDto = { ...post, readAt }
-        syncFeedStore(next)
+        // 「待阅读」里已阅项应从列表消失，与 witness 列表 onPostUpdated 行为一致
+        if (useReportStore.getState().filter === 'unread') reportRemove(post.id)
+        else syncFeedStore(next)
       } catch (err) {
         autoMarkedRef.current = false // 允许再次重试
         if (manual) {
@@ -213,7 +235,7 @@ export default function PostDetail() {
         if (manual) setReadRetrying(false)
       }
     },
-    [post, user, syncFeedStore],
+    [post, user, reportRemove, syncFeedStore],
   )
 
   useEffect(() => {
@@ -257,11 +279,27 @@ export default function PostDetail() {
   }
 
   // ---------- 评价（报备专属） ----------
+  const closeEvalSheet = useCallback(() => {
+    if (evalSubmitting) return
+    setEvalSheetOpen(false)
+    setEvalText(post?.evaluation?.text ?? '')
+  }, [evalSubmitting, post])
+
+  const openEvalSheet = useCallback(() => {
+    if (!post || post.type !== 'report') return
+    setEvalText(post.evaluation?.text ?? '')
+    setEvalSheetOpen(true)
+  }, [post])
+
   const handleSubmitEvaluation = async () => {
     if (!post) return
     const trimmed = evalText.trim()
     if (!trimmed) {
       Taro.showToast({ title: '写点什么吧', icon: 'none' })
+      return
+    }
+    if (trimmed.length > EVALUATION_MAX) {
+      Taro.showToast({ title: `评价过长（上限 ${EVALUATION_MAX}）`, icon: 'none' })
       return
     }
     setEvalSubmitting(true)
@@ -271,6 +309,7 @@ export default function PostDetail() {
       setPost(next)
       setEvalText(evaluation.text)
       syncFeedStore(next)
+      setEvalSheetOpen(false)
       Taro.showToast({ title: '已保存评价', icon: 'success' })
     } catch (err) {
       const msg = err instanceof ApiError ? err.msg : '提交失败'
@@ -418,164 +457,197 @@ export default function PostDetail() {
           className="px-4 pt-4"
           style={{ paddingBottom: isDaily ? px(160) : px(32) }}
         >
-          {/* 主内容区：与 witness 列表中的 Daily/Report 卡片壳层、头图、正文、配图对齐 */}
+          {/* 主内容区：日常柔白卡；报备为「头区 + 底栏」与 witness 列表一致 */}
           <View
-            className="flex flex-col gap-3 rounded-2xl p-4"
-            style={{
-              backgroundColor: '#ffffff',
-              borderWidth: 1,
-              borderStyle: 'solid',
-              borderColor: isReport ? 'rgba(195,181,159,0.45)' : 'rgba(195,181,159,0.38)',
-              boxShadow: postCardShellShadow(),
-            }}
+            className={
+              isReport
+                ? 'flex flex-col overflow-hidden rounded-2xl'
+                : 'flex flex-col gap-3 rounded-2xl p-4'
+            }
+            style={
+              isReport
+                ? {
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderColor: reportCardBorderColor(),
+                    boxShadow: reportArchiveShadow(),
+                    backgroundColor: reportCardContentSurface(),
+                  }
+                : {
+                    backgroundColor: '#ffffff',
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderColor: 'rgba(195,181,159,0.38)',
+                    boxShadow: postCardShellShadow(),
+                  }
+            }
           >
-            <PostDetailHeader post={post} />
+            <View
+              className={
+                isReport
+                  ? 'flex min-w-0 flex-1 flex-col gap-3 px-4 pb-4 pt-3'
+                  : 'flex flex-col gap-3'
+              }
+            >
+              <PostDetailHeader post={post} />
 
-            {isReport && post.tags.length > 0 ? (
-              <View className="flex flex-wrap gap-1.5">
-                {post.tags.map((t) => (
-                  <TagChip key={t} name={t} />
-                ))}
-              </View>
-            ) : null}
-
-            {post.text ? (
-              <Text
-                className={
-                  isDaily
-                    ? 'whitespace-pre-wrap text-sm leading-[1.75]'
-                    : 'whitespace-pre-wrap text-sm leading-relaxed'
-                }
-                style={{ color: C.deepSlate }}
-              >
-                {post.text}
-              </Text>
-            ) : null}
-
-            {post.images.length > 0 ? <PostImageGrid post={post} isDaily={isDaily} /> : null}
-
-            {/* 报备阅读状态 */}
-            {isReport ? (
-              <View
-                className="flex items-center justify-between rounded-xl px-3 py-2"
-                style={{ backgroundColor: 'rgba(195,181,159,0.12)', border: '1px solid rgba(195,181,159,0.35)' }}
-              >
-                <Text className="text-xs" style={{ color: '#668F80' }}>阅读状态</Text>
-                {post.readAt ? (
-                  <Text className="text-xs" style={{ color: '#A0AF84' }}>
-                    已阅 · {formatAbsolute(post.readAt)}
-                  </Text>
-                ) : isMine ? (
-                  <Text className="text-xs" style={{ color: '#C3B59F' }}>等 TA 查看…</Text>
-                ) : needManualRead ? (
-                  <View
-                    className="flex items-center justify-center rounded-full px-3"
-                    style={{
-                      height: px(48),
-                      backgroundColor: readRetrying ? '#C3B59F' : '#D6A2AD',
-                    }}
-                    onClick={readRetrying ? undefined : () => void performAutoMarkRead(true)}
+              <View className="flex flex-col gap-3">
+                {post.text ? (
+                  <Text
+                    className={
+                      isDaily
+                        ? 'whitespace-pre-wrap text-sm leading-[1.75]'
+                        : 'whitespace-pre-wrap text-sm leading-relaxed'
+                    }
+                    style={{ color: C.deepSlate }}
                   >
-                    <Text className="text-xs font-medium text-white">
-                      {readRetrying ? '重试中…' : '标记失败，重试'}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text className="text-xs" style={{ color: '#C3B59F' }}>标记中…</Text>
-                )}
-              </View>
-            ) : null}
+                    {post.text}
+                  </Text>
+                ) : null}
 
-            {isMine ? (
-              <View className="flex w-full flex-row justify-end">
-                <PostOwnerActions onEdit={handleEdit} onDelete={handleDelete} />
+                {post.images.length > 0 ? <PostImageGrid post={post} isDaily={isDaily} /> : null}
+
+                {/* 报备：底部左阅读状态 + 右编辑删除（与日常详情节奏一致） */}
+                {isReport ? (
+                  <View
+                    className="mt-1 flex min-w-0 flex-row items-center justify-between gap-3 border-t border-solid pt-3"
+                    style={{ borderTopColor: 'rgba(195,181,159,0.42)' }}
+                  >
+                    <View className="flex min-w-0 flex-1 flex-row flex-wrap items-center gap-2">
+                      {post.readAt ? (
+                        <>
+                          <ReportStatusPill tone="read" label="已阅" />
+                          <Text className="min-w-0 max-w-[200px] truncate text-xs" style={{ color: C.deepSlate }}>
+                            {formatAbsolute(post.readAt)}
+                          </Text>
+                        </>
+                      ) : isMine ? (
+                        <Text className="text-xs font-medium" style={{ color: C.warmSand }}>
+                          待读
+                        </Text>
+                      ) : needManualRead ? (
+                        <View
+                          className="flex items-center justify-center rounded-full px-3"
+                          style={{
+                            height: px(48),
+                            backgroundColor: readRetrying ? C.warmSand : C.rosePink,
+                          }}
+                          onClick={readRetrying ? undefined : () => void performAutoMarkRead(true)}
+                        >
+                          <Text className="text-xs font-medium text-white">
+                            {readRetrying ? '重试中…' : '标记失败，重试'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text className="text-xs font-medium" style={{ color: C.warmSand }}>
+                          标记中…
+                        </Text>
+                      )}
+                    </View>
+                    {isMine ? (
+                      <View className="shrink-0">
+                        <PostOwnerActions variant="report" onEdit={handleEdit} onDelete={handleDelete} />
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {isMine && isDaily ? (
+                  <View className="flex w-full flex-row justify-end">
+                    <PostOwnerActions variant="daily" onEdit={handleEdit} onDelete={handleDelete} />
+                  </View>
+                ) : null}
               </View>
-            ) : null}
+            </View>
           </View>
 
-          {/* 报备：评价卡片（必须已阅才可写） */}
+          {/* 报备：评价卡片 — 左侧玫瑰条 + slate 头区，与主卡层级区分 */}
           {isReport ? (
             <View
-              className="mt-3 flex flex-col gap-3 rounded-2xl p-4"
-              style={{
-                backgroundColor: '#ffffff',
-                borderWidth: 1,
-                borderStyle: 'solid',
-                borderColor: 'rgba(195,181,159,0.45)',
-                boxShadow: postCardShellShadow(),
-              }}
+              className="mt-3 flex flex-row overflow-hidden rounded-2xl"
+              style={reportEvaluationCardShell()}
             >
-              <View className="mb-2 flex items-center gap-1">
-                <Text style={{ fontSize: px(24), color: '#D6A2AD' }}>♡</Text>
-                <Text className="text-sm font-medium" style={{ color: C.deepSlate }}>TA 的评价</Text>
-              </View>
+              <View style={reportEvaluationAccentStripStyle()} />
 
-              {post.evaluation ? (
+              <View className="flex min-w-0 flex-1 flex-col">
                 <View
-                  className="rounded-xl p-3"
-                  style={{ backgroundColor: 'rgba(195,181,159,0.12)', border: '1px solid rgba(195,181,159,0.35)' }}
+                  className="px-4 pb-2.5 pt-3"
+                  style={{
+                    borderBottomWidth: 1,
+                    borderBottomStyle: 'solid',
+                    borderBottomColor: 'rgba(195,181,159,0.35)',
+                    backgroundColor: 'rgba(214,162,173,0.07)',
+                  }}
                 >
-                  <Text className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: '#4A6670' }}>
-                    {post.evaluation.text}
-                  </Text>
-                  <Text className="mt-1" style={{ fontSize: px(22), color: '#C3B59F' }}>
-                    {formatRelative(post.evaluation.updatedAt)}
-                    {post.evaluation.createdAt !== post.evaluation.updatedAt ? ' · 已编辑' : ''}
-                  </Text>
-                </View>
-              ) : isMine ? (
-                <Text className="text-xs" style={{ color: '#C3B59F' }}>等 TA 来评价…</Text>
-              ) : post.readAt ? (
-                <Text className="text-xs" style={{ color: '#C3B59F' }}>还没评价，写一句吧 ↓</Text>
-              ) : (
-                <Text className="text-xs" style={{ color: '#C3B59F' }}>
-                  标记已阅后才能写评价
-                </Text>
-              )}
-
-              {canEvaluate ? (
-                <View className="mt-3 flex flex-col gap-2">
-                  <View
-                    className="overflow-hidden rounded-xl p-3"
-                    style={{ border: '1px solid rgba(102,143,128,0.35)', backgroundColor: 'rgba(195,181,159,0.08)' }}
-                  >
-                    <Textarea
-                      className="w-full"
-                      style={{ fontSize: px(28), color: '#4A6670', minHeight: px(120) }}
-                      value={evalText}
-                      placeholder={post.evaluation ? '修改评价…' : '一句话给 TA 的回应'}
-                      placeholderClass="textarea-placeholder"
-                      placeholderStyle={EVAL_PLACEHOLDER_STYLE}
-                      maxlength={EVALUATION_MAX}
-                      onInput={(e) => setEvalText(e.detail.value)}
-                      autoHeight
-                    />
-                  </View>
-                  <View className="flex items-center justify-between">
-                    <Text style={{ fontSize: px(22), color: '#C3B59F' }}>
-                      {evalText.length}/{EVALUATION_MAX}
+                  <View className="flex min-w-0 flex-row items-start justify-between gap-3">
+                    <Text className="min-w-0 flex-1 text-sm font-semibold leading-snug" style={{ color: C.deepSlate }}>
+                      {post.evaluation
+                        ? `${post.evaluation.author.nickname.trim() || 'TA'} 的评价`
+                        : 'TA 的评价'}
                     </Text>
-                    <View
-                      className="flex items-center justify-center rounded-full px-5"
-                      style={{
-                        height: px(64),
-                        backgroundColor:
-                          evalSubmitting || evalText.trim().length === 0 ? '#C3B59F' : '#668F80',
-                      }}
-                      onClick={
-                        evalSubmitting || evalText.trim().length === 0
-                          ? undefined
-                          : handleSubmitEvaluation
-                      }
-                    >
-                      <Text style={{ fontSize: px(26), color: '#fff' }}>
-                        {post.evaluation ? '更新' : '提交'}
+                    {post.evaluation ? (
+                      <Text
+                        className="shrink-0 text-right"
+                        style={{
+                          fontSize: px(22),
+                          color: C.warmSand,
+                          lineHeight: px(30),
+                          maxWidth: '46%',
+                        }}
+                      >
+                        {formatRelative(post.evaluation.updatedAt)}
+                        {post.evaluation.createdAt !== post.evaluation.updatedAt ? ' · 已编辑' : ''}
                       </Text>
-                    </View>
+                    ) : null}
                   </View>
-                  <Text style={{ fontSize: px(22), color: '#C3B59F' }}>评价可以修改，但不能删除。</Text>
                 </View>
-              ) : null}
+
+                <View className="flex flex-col gap-3 px-4 pb-4 pt-3">
+                {post.evaluation ? (
+                  <View
+                    className="rounded-xl p-3"
+                    style={{
+                      backgroundColor: 'rgba(195,181,159,0.12)',
+                      borderWidth: 1,
+                      borderStyle: 'solid',
+                      borderColor: 'rgba(195,181,159,0.28)',
+                    }}
+                  >
+                    <Text className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: C.deepSlate }}>
+                      {post.evaluation.text}
+                    </Text>
+                    {canEvaluate ? (
+                      <View
+                        className="mt-2.5 flex flex-row justify-end border-t border-solid pt-2.5"
+                        style={{ borderTopColor: 'rgba(195,181,159,0.45)' }}
+                        onClick={openEvalSheet}
+                        catchMove
+                      >
+                        <Text className="text-xs font-medium" style={{ color: C.tealGreen }}>
+                          修改评价
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {canEvaluate && !post.evaluation ? (
+                  <View
+                    className="flex flex-row items-center rounded-xl border border-solid px-3 py-3"
+                    style={{
+                      backgroundColor: 'rgba(195,181,159,0.08)',
+                      borderColor: 'rgba(195,181,159,0.38)',
+                    }}
+                    onClick={openEvalSheet}
+                    catchMove
+                  >
+                    <Text className="text-sm" style={{ color: C.tealGreen }}>
+                      写一句回应…
+                    </Text>
+                  </View>
+                ) : null}
+                </View>
+              </View>
             </View>
           ) : null}
 
@@ -598,11 +670,6 @@ export default function PostDetail() {
                 <Text className="text-sm font-semibold" style={{ color: C.deepSlate }}>
                   评论 · {post.commentCount ?? 0}
                 </Text>
-                {comments.length > 0 ? (
-                  <Text className="text-xs" style={{ color: C.warmSand }}>
-                    长按可回复或编辑
-                  </Text>
-                ) : null}
               </View>
 
               {comments.length === 0 && !commentsLoading ? (
@@ -611,10 +678,7 @@ export default function PostDetail() {
                   style={{ backgroundColor: 'rgba(195,181,159,0.08)' }}
                 >
                   <Text className="text-xs leading-relaxed" style={{ color: C.tealGreen }}>
-                    还没有评论
-                  </Text>
-                  <Text className="mt-1 text-xs" style={{ color: C.warmSand }}>
-                    从下方说点什么，写第一条吧
+                    暂无评论
                   </Text>
                 </View>
               ) : (
@@ -687,49 +751,38 @@ export default function PostDetail() {
           onSubmit={handleSubmitDraft}
         />
       ) : null}
+
+      {/* 报备：评价输入 sheet（与日常评论 sheet 同交互） */}
+      {isReport && canEvaluate && evalSheetOpen ? (
+        <EvaluationInputSheet
+          isEdit={!!post.evaluation}
+          value={evalText}
+          submitting={evalSubmitting}
+          onChange={setEvalText}
+          onCancel={closeEvalSheet}
+          onSubmit={() => void handleSubmitEvaluation()}
+        />
+      ) : null}
     </View>
   )
 }
 
 // ---------- 子组件 ----------
 
-/** 与 witness 里 DailyPostCard / ReportPostCard 头图、标签区一致（操作入口放在主卡底部，避免头区拥挤） */
+/** 报备与列表共用 ReportCardMetaHeader；编辑/删除在卡片底部（与日常详情一致） */
 function PostDetailHeader({ post }: { post: PostDto }) {
   const authorAvatar = useRemoteImage(resolveAssetUrl(post.author.avatar))
 
   if (post.type === 'report') {
     return (
-      <View className="flex items-center gap-3">
-        <View
-          className="h-10 w-10 shrink-0 overflow-hidden rounded-full"
-          style={{ backgroundColor: 'rgba(195,181,159,0.35)' }}
-        >
-          {authorAvatar ? (
-            <Image src={authorAvatar} className="h-full w-full" mode="aspectFill" />
-          ) : (
-            <View className="flex h-full w-full items-center justify-center">
-              <Text style={{ fontSize: px(36), color: C.rosePink }}>♡</Text>
-            </View>
-          )}
-        </View>
-        <View className="flex min-w-0 flex-1 flex-col gap-1">
-          <View className="flex flex-wrap items-center gap-2">
-            <Text className="truncate text-base font-semibold" style={{ color: C.deepSlate }}>
-              {post.author.nickname}
-            </Text>
-            <PostCardBadge label="报备" />
-          </View>
-          <View className="flex flex-wrap items-center gap-1.5">
-            <Text className="text-xs font-medium" style={{ color: C.tealGreen }}>
-              {formatRelative(post.happenedAt)}
-            </Text>
-            <Text className="text-xs" style={{ color: 'rgba(195,181,159,0.9)' }}>·</Text>
-            <Text className="text-xs" style={{ color: 'rgba(74,102,112,0.55)' }}>
-              {formatAbsolute(post.happenedAt)}
-            </Text>
-          </View>
-        </View>
-      </View>
+      <ReportCardMetaHeader
+        nickname={post.author.nickname}
+        avatarDisplaySrc={authorAvatar}
+        happenedAt={post.happenedAt}
+        tags={post.tags}
+        showAllTags
+        happenedTimeStyle="absolute"
+      />
     )
   }
 
@@ -780,18 +833,29 @@ function PostDetailHeader({ post }: { post: PostDto }) {
 function PostOwnerActions({
   onEdit,
   onDelete,
+  variant = 'daily',
 }: {
   onEdit: () => void
   onDelete: () => void
+  variant?: 'daily' | 'report'
 }) {
+  const editColor = variant === 'report' ? '#668F80' : C.tealGreen
+  const deleteColor = variant === 'report' ? 'rgba(214,162,173,0.95)' : C.warmSand
+  const sepOpacity = variant === 'report' ? 0.4 : 0.55
   return (
     <View className="flex shrink-0 flex-row items-center gap-0.5">
       <View className="px-0.5 py-0.5" onClick={onEdit} catchMove>
-        <Text className="text-xs" style={{ color: C.tealGreen }}>编辑</Text>
+        <Text className="text-xs" style={{ color: editColor }}>
+          编辑
+        </Text>
       </View>
-      <Text className="text-xs" style={{ color: C.warmSand, opacity: 0.55 }}>·</Text>
+      <Text className="text-xs" style={{ color: C.warmSand, opacity: sepOpacity }}>
+        ·
+      </Text>
       <View className="px-0.5 py-0.5" onClick={onDelete} catchMove>
-        <Text className="text-xs" style={{ color: C.warmSand }}>删除</Text>
+        <Text className="text-xs" style={{ color: deleteColor }}>
+          删除
+        </Text>
       </View>
     </View>
   )
@@ -804,7 +868,7 @@ function PostImageGrid({ post, isDaily }: { post: PostDto; isDaily: boolean }) {
   }
   return (
     <View
-      className={`grid ${isDaily ? 'gap-2' : 'gap-1'} ${
+      className={`grid ${isDaily ? 'gap-2' : 'gap-2'} ${
         cols === 1 ? 'grid-cols-1' : cols === 2 ? 'grid-cols-2' : 'grid-cols-3'
       }`}
     >
@@ -854,16 +918,14 @@ function CommentItem({
           )}
         </View>
         <View className="min-w-0 flex-1">
-          <View className="flex flex-wrap items-center gap-1.5">
-            <Text className="text-xs font-semibold" style={{ color: C.tealGreen }}>
+          <View className="flex min-w-0 flex-row items-center justify-between gap-2">
+            <Text className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: C.tealGreen }}>
               {comment.author.nickname}
             </Text>
-            <Text className="text-xs" style={{ color: C.warmSand }}>
+            <Text className="shrink-0 text-xs" style={{ color: C.warmSand }}>
               {formatRelative(comment.createdAt)}
+              {comment.editedAt ? ' · 已编辑' : ''}
             </Text>
-            {comment.editedAt ? (
-              <Text className="text-xs" style={{ color: C.warmSand }}>· 已编辑</Text>
-            ) : null}
           </View>
           <Text
             className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed"
@@ -901,16 +963,14 @@ function ReplyItem({
       className="rounded-lg px-2.5 py-1.5"
       style={{ backgroundColor: 'rgba(255,255,255,0.65)' }}
     >
-      <View className="flex flex-wrap items-center gap-1.5">
-        <Text className="text-xs font-semibold" style={{ color: C.tealGreen }}>
+      <View className="flex min-w-0 flex-row items-center justify-between gap-2">
+        <Text className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: C.tealGreen }}>
           {reply.author.nickname}
         </Text>
-        <Text className="text-xs" style={{ color: C.warmSand }}>
+        <Text className="shrink-0 text-xs" style={{ color: C.warmSand }}>
           {formatRelative(reply.createdAt)}
+          {reply.editedAt ? ' · 已编辑' : ''}
         </Text>
-        {reply.editedAt ? (
-          <Text className="text-xs" style={{ color: C.warmSand }}>· 已编辑</Text>
-        ) : null}
       </View>
       <Text
         className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed"
@@ -1006,7 +1066,7 @@ function CommentInputSheet({
               value={value}
               placeholder={placeholder}
               placeholderClass="textarea-placeholder"
-              placeholderStyle={COMMENT_PLACEHOLDER_STYLE}
+              placeholderStyle={SHEET_TEXTAREA_PLACEHOLDER_STYLE}
               maxlength={POST_COMMENT_MAX}
               onInput={(e) => onChange(e.detail.value)}
               autoHeight
@@ -1031,6 +1091,126 @@ function CommentInputSheet({
             />
             <Text className="mt-1" style={{ fontSize: px(22), color: '#C3B59F' }}>
               {value.length}/{POST_COMMENT_MAX}
+            </Text>
+          </View>
+          <View
+            className="flex shrink-0 flex-col items-center justify-center rounded-2xl"
+            style={{
+              width: px(112),
+              minHeight: px(112),
+              backgroundColor: canSubmit ? '#668F80' : '#C3B59F',
+            }}
+            onClick={handleSubmitTap}
+          >
+            <Text className="text-center font-medium" style={{ fontSize: px(28), color: '#fff', lineHeight: px(36) }}>
+              {submitLabel}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </>
+  )
+}
+
+/** 报备评价底部 sheet：与 CommentInputSheet 同结构，避免详情页内嵌大输入框 */
+function EvaluationInputSheet({
+  isEdit,
+  value,
+  submitting,
+  onChange,
+  onCancel,
+  onSubmit,
+}: {
+  isEdit: boolean
+  value: string
+  submitting: boolean
+  onChange: (v: string) => void
+  onCancel: () => void
+  onSubmit: () => void
+}) {
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const title = isEdit ? '修改评价' : '写评价'
+  const placeholder = isEdit ? '修改…' : '写一句回应'
+  const canSubmit = value.trim().length > 0 && !submitting
+  const submitLabel = submitting ? '提交中…' : isEdit ? '保存' : '提交'
+
+  const handleSubmitTap = () => {
+    if (!canSubmit) return
+    onSubmit()
+  }
+
+  return (
+    <>
+      <View
+        className="fixed inset-0"
+        style={{ backgroundColor: 'rgba(74,102,112,0.35)' }}
+        onClick={onCancel}
+      />
+      <View
+        className="fixed left-0 right-0 flex flex-col gap-2.5 rounded-t-2xl px-4 pb-4 pt-3"
+        style={{
+          bottom: IS_WEAPP && keyboardHeight > 0 ? `${keyboardHeight}px` : 0,
+          backgroundColor: '#ffffff',
+          boxShadow: `0 ${px(-4)} ${px(24)} rgba(74,102,112,0.12)`,
+        }}
+        catchMove
+        onClick={(e) => e.stopPropagation()}
+      >
+        <View className="flex items-center justify-between">
+          <Text className="min-w-0 flex-1 pr-2 text-sm font-medium" style={{ color: C.deepSlate }}>
+            {title}
+          </Text>
+          <View
+            className="shrink-0 flex items-center justify-center py-2 pl-3"
+            onClick={() => {
+              if (submitting) return
+              onCancel()
+            }}
+          >
+            <Text className="text-xs" style={{ color: '#C3B59F' }}>
+              取消
+            </Text>
+          </View>
+        </View>
+        <View className="flex flex-row items-end gap-2.5">
+          <View
+            className="min-w-0 flex-1 overflow-hidden rounded-xl px-3 pb-2 pt-2.5"
+            style={{
+              border: '1px solid rgba(214,162,173,0.35)',
+              backgroundColor: 'rgba(214,162,173,0.06)',
+            }}
+          >
+            <Textarea
+              className="w-full"
+              style={{ fontSize: px(28), color: C.deepSlate, minHeight: px(120) }}
+              value={value}
+              placeholder={placeholder}
+              placeholderClass="textarea-placeholder"
+              placeholderStyle={SHEET_TEXTAREA_PLACEHOLDER_STYLE}
+              maxlength={EVALUATION_MAX}
+              onInput={(e) => onChange(e.detail.value)}
+              autoHeight
+              focus
+              fixed
+              adjustPosition={!IS_WEAPP}
+              showConfirmBar={false}
+              confirmType="send"
+              confirmHold={false}
+              cursorSpacing={72}
+              onKeyboardHeightChange={(e) => {
+                if (!IS_WEAPP) return
+                const h = typeof e.detail?.height === 'number' ? e.detail.height : 0
+                setKeyboardHeight(h)
+              }}
+              onBlur={() => {
+                if (IS_WEAPP) setKeyboardHeight(0)
+              }}
+              onConfirm={() => {
+                if (canSubmit) onSubmit()
+              }}
+            />
+            <Text className="mt-1" style={{ fontSize: px(22), color: '#C3B59F' }}>
+              {value.length}/{EVALUATION_MAX}
             </Text>
           </View>
           <View

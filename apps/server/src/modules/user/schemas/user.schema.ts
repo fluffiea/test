@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import type { WitnessDefaultTab } from '@momoya/shared';
+import {
+  DEFAULT_REPORT_LIST_FILTER,
+  DEFAULT_WITNESS_TAB,
+  type ReportFilter,
+  type WitnessDefaultTab,
+} from '@momoya/shared';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -13,9 +18,16 @@ export class UserSettings {
   @Prop({
     type: String,
     enum: ['daily', 'report'],
-    default: 'daily',
+    default: DEFAULT_WITNESS_TAB,
   })
   defaultWitnessTab!: WitnessDefaultTab;
+
+  @Prop({
+    type: String,
+    enum: ['all', 'unread', 'mine'],
+    default: DEFAULT_REPORT_LIST_FILTER,
+  })
+  defaultReportListFilter!: ReportFilter;
 }
 
 export const UserSettingsSchema = SchemaFactory.createForClass(UserSettings);
@@ -48,7 +60,10 @@ export class User {
 
   @Prop({
     type: UserSettingsSchema,
-    default: () => ({ defaultWitnessTab: 'daily' }),
+    default: () => ({
+      defaultWitnessTab: DEFAULT_WITNESS_TAB,
+      defaultReportListFilter: DEFAULT_REPORT_LIST_FILTER,
+    }),
   })
   settings!: UserSettings;
 }

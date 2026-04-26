@@ -1,12 +1,13 @@
 import { create } from 'zustand'
-import type { PostDto, PostType, ReportFilter } from '@momoya/shared'
+import type { MeDto, PostDto, PostType, ReportFilter } from '@momoya/shared'
+import { DEFAULT_REPORT_LIST_FILTER } from '@momoya/shared'
 import { postApi } from '../services/post'
 
 /**
  * 通用的 post feed store。
  * 一条 feed = 一种 (type, filter) 组合：
  *   - 日常 feed：type=daily，filter 恒为 'all'（这里直接透传）
- *   - 报备 feed：type=report，filter 可在 all/unread/mine 之间切换，切换即 reset + refresh
+ *   - 报备 feed：type=report，初始 filter 为 `DEFAULT_REPORT_LIST_FILTER`（shared），可在 all/unread/mine 间切换
  *
  * 对外暴露的 API 与原 momentStore 兼容（items / refresh / fetchNext / prepend / removeById / reset），
  * 额外：
@@ -128,4 +129,36 @@ function createPostFeedStore(type: PostType, initialFilter: ReportFilter = 'all'
 }
 
 export const useDailyStore = createPostFeedStore('daily', 'all')
-export const useReportStore = createPostFeedStore('report', 'all')
+export const useReportStore = createPostFeedStore('report', DEFAULT_REPORT_LIST_FILTER)
+
+/** 登录 / hydrate / 设置保存后：用用户偏好对齐报备列表筛选（会触发列表刷新） */
+export function syncReportListFilterFromUserSettings(user: MeDto | null): void {
+  if (!user) return
+  const next = user.settings.defaultReportListFilter
+  const { filter, setFilter, refresh, items } = useReportStore.getState()
+  if (filter !== next) {
+    void setFilter(next)
+    return
+  }
+  // 筛选未变但列表已空（如登出 reset 后再登录同一默认筛选）时仍需拉数
+  if (items.length === 0) {
+    void refresh()
+  }
+}
+
+/**
+ * 登出后清空两条 feed，避免下一账号与上一账号默认筛选相同时仍显示旧列表。
+ * filter 回到产品默认（与未登录 store 初始一致）。
+ */
+export function resetPostFeedsAfterLogout(): void {
+  useDailyStore.getState().reset()
+  useReportStore.setState({
+    filter: DEFAULT_REPORT_LIST_FILTER,
+    items: [],
+    cursor: null,
+    hasMore: true,
+    loading: false,
+    refreshing: false,
+    error: null,
+  })
+}

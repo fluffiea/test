@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import type { EvaluationDto } from '@momoya/shared';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { toIsoString } from '../../common/utils/date';
+import { UserService } from '../user/user.service';
 import { PostService } from './post.service';
 import { Evaluation, EvaluationDocument } from './schemas/evaluation.schema';
 
@@ -17,6 +18,7 @@ export class EvaluationService {
     @InjectModel(Evaluation.name)
     private readonly evaluationModel: Model<EvaluationDocument>,
     private readonly postService: PostService,
+    private readonly userService: UserService,
   ) {}
 
   /**
@@ -78,10 +80,27 @@ export class EvaluationService {
       )
       .exec();
 
+    const authors = await this.userService.findManyBrief([doc.authorId]);
+    const u = authors[0];
+    const author = u
+      ? {
+          id: String(u._id),
+          username: u.username,
+          nickname: u.nickname,
+          avatar: u.avatar,
+        }
+      : {
+          id: String(doc.authorId),
+          username: '',
+          nickname: '(未知用户)',
+          avatar: '',
+        };
+
     return {
       id: String(doc._id),
       postId: String(doc.postId),
       authorId: String(doc.authorId),
+      author,
       text: doc.text,
       createdAt: toIsoString(doc.createdAt),
       updatedAt: toIsoString(doc.updatedAt),

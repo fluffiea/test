@@ -71,7 +71,8 @@ export default function DailyPanel({ active }: Props) {
 
   const handleLongPress = async (p: PostDto) => {
     if (!user || p.author.id !== user.id) return
-    const res = await Taro.showActionSheet({ itemList: ['编辑', '删除'] })
+    const res = await Taro.showActionSheet({ itemList: ['编辑', '删除'] }).catch(() => null)
+    if (!res) return
     if (res.tapIndex === 0) {
       Taro.navigateTo({ url: `/pages/moments/publish/index?id=${p.id}` })
       return

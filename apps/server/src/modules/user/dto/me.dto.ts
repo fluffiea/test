@@ -1,12 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type {
   MeDto as MeShape,
+  ReportFilter,
   UserSettingsDto as UserSettingsShape,
   WitnessDefaultTab,
 } from '@momoya/shared';
 
 /**
- * 用户偏好设置（当前仅一个开关，未来会扩）。
+ * 用户偏好设置（见证默认 tab、报备默认筛选等）。
  * 字段形状由 `@momoya/shared` 的 `UserSettingsDto` 约束。
  */
 export class UserSettingsDto implements UserSettingsShape {
@@ -16,6 +17,13 @@ export class UserSettingsDto implements UserSettingsShape {
     description: '见证页首次进入时默认落在哪个子 tab',
   })
   defaultWitnessTab!: WitnessDefaultTab;
+
+  @ApiProperty({
+    enum: ['all', 'unread', 'mine'],
+    example: 'unread',
+    description: '见证页报备列表默认筛选',
+  })
+  defaultReportListFilter!: ReportFilter;
 }
 
 /**

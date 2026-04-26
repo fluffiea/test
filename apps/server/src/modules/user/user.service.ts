@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { DEFAULT_REPORT_LIST_FILTER, DEFAULT_WITNESS_TAB } from '@momoya/shared';
 import { MeDto } from './dto/me.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { User, UserDocument } from './schemas/user.schema';
@@ -80,6 +81,10 @@ export class UserService {
       if (dto.settings.defaultWitnessTab !== undefined) {
         $set['settings.defaultWitnessTab'] = dto.settings.defaultWitnessTab;
       }
+      if (dto.settings.defaultReportListFilter !== undefined) {
+        $set['settings.defaultReportListFilter'] =
+          dto.settings.defaultReportListFilter;
+      }
     }
 
     if (Object.keys($set).length === 0) {
@@ -94,7 +99,10 @@ export class UserService {
   /** UserDocument → MeDto 的统一映射，避免多处散落。 */
   toMe(user: UserDocument): MeDto {
     // 老账号可能缺 settings，兜底给默认值
-    const s = user.settings ?? { defaultWitnessTab: 'daily' as const };
+    const s = user.settings ?? {
+      defaultWitnessTab: DEFAULT_WITNESS_TAB,
+      defaultReportListFilter: DEFAULT_REPORT_LIST_FILTER,
+    };
     return {
       id: String(user._id),
       username: user.username,
@@ -103,7 +111,9 @@ export class UserService {
       bio: user.bio,
       partnerId: user.partnerId ? String(user.partnerId) : null,
       settings: {
-        defaultWitnessTab: s.defaultWitnessTab ?? 'daily',
+        defaultWitnessTab: s.defaultWitnessTab ?? DEFAULT_WITNESS_TAB,
+        defaultReportListFilter:
+          s.defaultReportListFilter ?? DEFAULT_REPORT_LIST_FILTER,
       },
     };
   }

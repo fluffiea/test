@@ -8,3 +8,4 @@ export * from './post';
 export * from './tag';
 export * from './upload';
 export * from './user';
+export * from './witness-defaults';

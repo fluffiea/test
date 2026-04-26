@@ -84,6 +84,9 @@ export class EvaluationViewDto implements EvaluationShape {
   @ApiProperty({ example: '65f1c2e4a1b2c3d4e5f67890' })
   authorId!: string;
 
+  @ApiProperty({ type: PostAuthorDto })
+  author!: PostAuthorDto;
+
   @ApiProperty({ example: '真乖，记得按时休息。' })
   text!: string;
 

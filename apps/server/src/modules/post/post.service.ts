@@ -677,7 +677,9 @@ export class PostService {
     const doc = await this.evaluationModel
       .findOne({ postId: new Types.ObjectId(postId) })
       .exec();
-    return doc ? this.toEvaluationDto(doc) : null;
+    if (!doc) return null;
+    const authorMap = await this.loadAuthorMap([doc.authorId]);
+    return this.toEvaluationDto(doc, authorMap);
   }
 
   private async loadEvaluationMap(
@@ -687,8 +689,9 @@ export class PostService {
     const docs = await this.evaluationModel
       .find({ postId: { $in: postIds } })
       .exec();
+    const authorMap = await this.loadAuthorMap(docs.map((d) => d.authorId));
     return new Map(
-      docs.map((d) => [String(d.postId), this.toEvaluationDto(d)]),
+      docs.map((d) => [String(d.postId), this.toEvaluationDto(d, authorMap)]),
     );
   }
 
@@ -842,11 +845,15 @@ export class PostService {
     return { postDoc, comment };
   }
 
-  private toEvaluationDto(doc: EvaluationDocument): EvaluationDto {
+  private toEvaluationDto(
+    doc: EvaluationDocument,
+    authorMap: Map<string, UserDocument>,
+  ): EvaluationDto {
     return {
       id: String(doc._id),
       postId: String(doc.postId),
       authorId: String(doc.authorId),
+      author: this.toAuthorDto(authorMap.get(String(doc.authorId)), doc.authorId),
       text: doc.text,
       createdAt: toIsoString(doc.createdAt),
       updatedAt: toIsoString(doc.updatedAt),
