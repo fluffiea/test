@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { TagModule } from '../tag/tag.module';
 import { UserModule } from '../user/user.module';
 import { EvaluationService } from './evaluation.service';
@@ -20,6 +21,7 @@ import { Post, PostSchema } from './schemas/post.schema';
     AuthModule,
     UserModule,
     TagModule,
+    RealtimeModule,
   ],
   controllers: [PostController],
   providers: [PostService, EvaluationService],

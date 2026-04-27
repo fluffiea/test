@@ -100,7 +100,7 @@ export default function ReportPanel({ active }: Props) {
 
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
-      if (prev.accessToken && !state.accessToken) resetReports()
+      if (prev?.accessToken && !state.accessToken) resetReports()
     })
     return unsub
   }, [resetReports])

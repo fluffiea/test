@@ -33,11 +33,23 @@ function resolveApiBase(): string {
 
 export const API_BASE_URL = resolveApiBase()
 
+/** 去掉 `/api/v1` 后的 HTTP(S) 源，用于静态资源与 Socket 默认地址 */
+const appHttpOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '')
+
+/**
+ * Socket.IO 根地址（默认 path `/socket.io`）。
+ * `TARO_APP_WS_URL` 必须在对应 mode 的 `.env.*` 里声明（可为空字符串），
+ * 以便 Taro 在构建期替换为字面量；小程序运行时没有 `process`，不能残留 `process.env`。
+ */
+const rawWsUrlFromBuild = process.env.TARO_APP_WS_URL || ''
+export const WS_ORIGIN_URL =
+  rawWsUrlFromBuild.length > 0 ? rawWsUrlFromBuild : appHttpOrigin
+
 /**
  * 静态资源前缀。后端把 UPLOAD_DIR 挂到 /static，所以用 API_BASE_URL 的 origin
  * 加 /static 即可（与 /api/v1 同域）。若改为 CDN，单独改这里。
  */
-export const STATIC_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '') + '/static'
+export const STATIC_BASE_URL = `${appHttpOrigin}/static`
 
 /**
  * 把后端返回的 /static/... 相对路径拼成完整 URL；若已经是完整 URL 原样返回；

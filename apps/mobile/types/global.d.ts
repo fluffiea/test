@@ -23,6 +23,8 @@ declare namespace NodeJS {
      * @see https://taro-docs.jd.com/docs/next/env-mode-config#特殊环境变量-taro_app_id
      */
     TARO_APP_ID: string
+    /** 可选：覆盖 Socket.IO 连接地址（默认与 API 同源） */
+    TARO_APP_WS_URL?: string
   }
 }
 

@@ -13,6 +13,8 @@ import {
 } from '@momoya/shared';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { toIsoString } from '../../common/utils/date';
+import { makeCoupleKey } from '../../common/couple-key';
+import { CoupleRealtimeService } from '../realtime/couple-realtime.service';
 import { UserService } from '../user/user.service';
 import { CreateAnniversaryDto } from './dto/create-anniversary.dto';
 import { UpdateAnniversaryDto } from './dto/update-anniversary.dto';
@@ -60,20 +62,13 @@ function normalizeDateTimeToUtcMinute(raw: string): Date {
   );
 }
 
-/**
- * 情侣共享 key：把两个 userId 字符串按字典序排后拼接。
- * 任意一方都能算出同一个 key，查询/写入都走它。
- */
-export function makeCoupleKey(a: string, b: string): string {
-  return [a, b].sort().join('-');
-}
-
 @Injectable()
 export class AnniversaryService {
   constructor(
     @InjectModel(Anniversary.name)
     private readonly anniversaryModel: Model<AnniversaryDocument>,
     private readonly userService: UserService,
+    private readonly coupleRealtime: CoupleRealtimeService,
   ) {}
 
   /**
@@ -130,7 +125,9 @@ export class AnniversaryService {
       createdBy: new Types.ObjectId(userId),
       isSystem: false,
     });
-    return toDto(doc);
+    const result = toDto(doc);
+    this.coupleRealtime.emitAnniversaryCreated(coupleKey, result);
+    return result;
   }
 
   async update(
@@ -160,7 +157,9 @@ export class AnniversaryService {
     }
 
     await doc.save();
-    return toDto(doc);
+    const result = toDto(doc);
+    this.coupleRealtime.emitAnniversaryUpdated(doc.coupleKey, result);
+    return result;
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -171,7 +170,10 @@ export class AnniversaryService {
         errorKey: ErrorKey.E_ANNIV_SYSTEM_READONLY,
       });
     }
+    const coupleKey = doc.coupleKey;
+    const idStr = String(doc._id);
     await doc.deleteOne();
+    this.coupleRealtime.emitAnniversaryDeleted(coupleKey, idStr);
   }
 
   /**

@@ -12,6 +12,7 @@ import { AnniversaryModule } from './modules/anniversary/anniversary.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { PostModule } from './modules/post/post.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { TagModule } from './modules/tag/tag.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserModule } from './modules/user/user.module';
@@ -77,6 +78,7 @@ import { SeedModule } from './seed/seed.module';
     UploadModule,
     TagModule,
     PostModule,
+    RealtimeModule,
     AnniversaryModule,
     HealthModule,
     SeedModule,

@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ALLOWED_IMAGE_MIME } from '@momoya/shared';
+import { ALLOWED_IMAGE_MIME, ErrorKey } from '@momoya/shared';
 import type { AppConfig } from '../../config/configuration';
 
 /** 从 shared 重新导出，保持旧引入路径可用（upload.module.ts 在用）。 */
@@ -43,9 +43,23 @@ export class UploadService {
 
   /** multer diskStorage 写盘成功后，把 file 信息拼成对外响应。 */
   finalize(file: Express.Multer.File) {
-    const relativePath = path
-      .relative(this.uploadDir, file.path)
-      .replace(/\\/g, '/');
+    const resolvedBase = path.resolve(this.uploadDir);
+    const resolvedFile = path.resolve(file.path);
+    const relToBase = path.relative(resolvedBase, resolvedFile);
+    if (
+      relToBase.startsWith('..') ||
+      path.isAbsolute(relToBase) ||
+      relToBase === ''
+    ) {
+      this.logger.warn(
+        `Reject finalize: resolved path escapes upload dir (${resolvedFile})`,
+      );
+      throw new BadRequestException({
+        message: '非法上传路径',
+        errorKey: ErrorKey.E_VALIDATION,
+      });
+    }
+    const relativePath = relToBase.replace(/\\/g, '/');
     const url = `/static/${relativePath}`;
     const absoluteUrl = `${this.staticBaseUrl}/${relativePath}`;
     return {

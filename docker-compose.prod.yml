@@ -23,6 +23,19 @@ services:
       retries: 5
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    container_name: momoya-redis
+    restart: unless-stopped
+    networks:
+      - momoya
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   server:
     image: momoya-server:${MOMOYA_SERVER_TAG:-latest}
     build:
@@ -42,12 +55,15 @@ services:
       STATIC_BASE_URL: ${STATIC_BASE_URL:-http://localhost:3000/static}
       UPLOAD_MAX_SIZE_BYTES: ${UPLOAD_MAX_SIZE_BYTES:-5242880}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      REDIS_URL: redis://redis:6379
     volumes:
       - server-uploads:/app/uploads
     ports:
       - "${SERVER_PORT:-3000}:3000"
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - momoya

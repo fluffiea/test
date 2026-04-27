@@ -34,6 +34,10 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       'process.env.TARO_APP_DEV_API_PORT': JSON.stringify(
         process.env.TARO_APP_DEV_API_PORT || ''
       ),
+      // 与 src/config/index.ts 中 TARO_APP_WS_URL 一致，避免小程序运行时残留 process.env
+      'process.env.TARO_APP_WS_URL': JSON.stringify(
+        process.env.TARO_APP_WS_URL ?? ''
+      ),
     },
     copy: {
       patterns: [

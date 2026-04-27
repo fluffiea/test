@@ -3,10 +3,8 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Connection, Model } from 'mongoose';
 import { BCRYPT_ROUNDS } from '../common/constants/crypto';
-import {
-  AnniversaryService,
-  makeCoupleKey,
-} from '../modules/anniversary/anniversary.service';
+import { makeCoupleKey } from '../common/couple-key';
+import { AnniversaryService } from '../modules/anniversary/anniversary.service';
 import {
   PostComment,
   PostCommentDocument,

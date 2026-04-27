@@ -27,16 +27,21 @@ import {
   TAG_NAME_MAX,
 } from '@momoya/shared';
 import type { PostCommentPageDto } from '@momoya/shared';
+import { makeCoupleKey } from '../../common/couple-key';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { toDate, toIsoString } from '../../common/utils/date';
 import { TagService } from '../tag/tag.service';
+import { CoupleRealtimeService } from '../realtime/couple-realtime.service';
 import { UserService } from '../user/user.service';
 import type { UserDocument } from '../user/schemas/user.schema';
 import { CreatePostDto } from './dto/create-post.dto';
 import { ListPostsQueryDto } from './dto/list-posts.query.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Evaluation, EvaluationDocument } from './schemas/evaluation.schema';
-import { PostComment, PostCommentDocument } from './schemas/post-comment.schema';
+import {
+  PostComment,
+  PostCommentDocument,
+} from './schemas/post-comment.schema';
 import { Post, PostDocument } from './schemas/post.schema';
 
 const DEFAULT_LIMIT = 20;
@@ -51,6 +56,7 @@ export class PostService {
     private readonly postCommentModel: Model<PostCommentDocument>,
     private readonly userService: UserService,
     private readonly tagService: TagService,
+    private readonly coupleRealtime: CoupleRealtimeService,
   ) {}
 
   async create(authorId: string, dto: CreatePostDto): Promise<PostDto> {
@@ -88,7 +94,16 @@ export class PostService {
 
     const authorMap = await this.loadAuthorMap([doc.authorId]);
     const emptyComments = { comments: [] as PostCommentDto[], commentCount: 0 };
-    return this.toDto(doc, authorMap, null, emptyComments, authorId);
+    const postDto = this.toDto(doc, authorMap, null, emptyComments, authorId);
+    const ck = await this.coupleKeyForUser(authorId);
+    if (ck) {
+      if (postDto.type === 'daily') {
+        this.coupleRealtime.emitDailyCreated(ck, postDto);
+      } else if (postDto.type === 'report') {
+        this.coupleRealtime.emitReportCreated(ck, postDto);
+      }
+    }
+    return postDto;
   }
 
   async update(
@@ -132,7 +147,8 @@ export class PostService {
       });
     }
 
-    if (Object.keys(next).length > 0) {
+    const hadChanges = Object.keys(next).length > 0;
+    if (hadChanges) {
       Object.assign(doc, next);
       await doc.save();
     }
@@ -143,7 +159,7 @@ export class PostService {
       [doc._id],
       authorId,
     );
-    return this.toDto(
+    const postDto = this.toDto(
       doc,
       authorMap,
       evaluation,
@@ -153,6 +169,17 @@ export class PostService {
       },
       authorId,
     );
+    if (hadChanges) {
+      const ck = await this.coupleKeyForUser(authorId);
+      if (ck) {
+        if (doc.type === 'daily') {
+          this.coupleRealtime.emitDailyUpdated(ck, postDto);
+        } else if (doc.type === 'report') {
+          this.coupleRealtime.emitReportUpdated(ck, postDto);
+        }
+      }
+    }
+    return postDto;
   }
 
   async detail(
@@ -163,10 +190,7 @@ export class PostService {
     const doc = await this.mustFindVisiblePost(userId, partnerId, postId);
     const authorMap = await this.loadAuthorMap([doc.authorId]);
     const evaluation = await this.loadEvaluation(String(doc._id));
-    const commentBlock = await this.loadCommentBlockForPosts(
-      [doc._id],
-      userId,
-    );
+    const commentBlock = await this.loadCommentBlockForPosts([doc._id], userId);
     return this.toDto(
       doc,
       authorMap,
@@ -238,7 +262,7 @@ export class PostService {
           errorKey: ErrorKey.E_POST_COMMENT_DEPTH,
         });
       }
-      parentObjectId = parent._id as Types.ObjectId;
+      parentObjectId = parent._id;
     }
 
     const c = await this.postCommentModel.create({
@@ -249,7 +273,17 @@ export class PostService {
     });
 
     const authorMap = await this.loadAuthorMap([c.authorId]);
-    return this.toPostCommentDto(c, authorMap, userId, /*locked*/ false);
+    const dto = this.toPostCommentDto(c, authorMap, userId, /*locked*/ false);
+    const ck = await this.coupleKeyForUser(userId);
+    if (ck) {
+      this.coupleRealtime.emitCommentAdded(
+        ck,
+        String(doc._id),
+        dto,
+        dto.parentId,
+      );
+    }
+    return dto;
   }
 
   /** 编辑评论：仅作者本人可改，软锁/硬锁都不影响编辑；会打 `editedAt`。 */
@@ -286,7 +320,8 @@ export class PostService {
       });
     }
 
-    if (trimmed !== comment.text) {
+    const changed = trimmed !== comment.text;
+    if (changed) {
       comment.text = trimmed;
       comment.editedAt = new Date();
       await comment.save();
@@ -294,10 +329,16 @@ export class PostService {
 
     const locked = comment.parentId
       ? false
-      : await this.hasLiveReplies(comment._id as Types.ObjectId);
+      : await this.hasLiveReplies(comment._id);
     const authorMap = await this.loadAuthorMap([comment.authorId]);
-    void postDoc;
-    return this.toPostCommentDto(comment, authorMap, userId, locked);
+    const dto = this.toPostCommentDto(comment, authorMap, userId, locked);
+    if (changed) {
+      const ck = await this.coupleKeyForUser(userId);
+      if (ck) {
+        this.coupleRealtime.emitCommentUpdated(ck, String(postDoc._id), dto);
+      }
+    }
+    return dto;
   }
 
   /**
@@ -311,7 +352,7 @@ export class PostService {
     postId: string,
     commentId: string,
   ): Promise<void> {
-    const { comment } = await this.mustFindVisibleComment(
+    const { postDoc, comment } = await this.mustFindVisibleComment(
       userId,
       partnerId,
       postId,
@@ -324,7 +365,7 @@ export class PostService {
       });
     }
     if (!comment.parentId) {
-      const locked = await this.hasLiveReplies(comment._id as Types.ObjectId);
+      const locked = await this.hasLiveReplies(comment._id);
       if (locked) {
         throw new ForbiddenException({
           message: '已有回复的一级评论只能编辑，不能删除',
@@ -332,8 +373,18 @@ export class PostService {
         });
       }
     }
+    const parentIdStr = comment.parentId ? String(comment.parentId) : null;
     comment.deletedAt = new Date();
     await comment.save();
+    const ck = await this.coupleKeyForUser(userId);
+    if (ck) {
+      this.coupleRealtime.emitCommentDeleted(
+        ck,
+        String(postDoc._id),
+        String(comment._id),
+        parentIdStr,
+      );
+    }
   }
 
   /**
@@ -415,7 +466,7 @@ export class PostService {
 
     const last = primaries[primaries.length - 1];
     const nextCursor =
-      hasMore && last ? makeCommentCursor(last.createdAt, last._id as Types.ObjectId) : null;
+      hasMore && last ? makeCommentCursor(last.createdAt, last._id) : null;
     return { items, nextCursor };
   }
 
@@ -503,8 +554,18 @@ export class PostService {
 
   async remove(userId: string, postId: string): Promise<void> {
     const doc = await this.mustFindOwnPost(userId, postId);
+    const kind = doc.type;
+    const idStr = String(doc._id);
     doc.deletedAt = new Date();
     await doc.save();
+    const ck = await this.coupleKeyForUser(userId);
+    if (ck) {
+      if (kind === 'daily') {
+        this.coupleRealtime.emitDailyDeleted(ck, idStr);
+      } else if (kind === 'report') {
+        this.coupleRealtime.emitReportDeleted(ck, idStr);
+      }
+    }
   }
 
   /** 标记报备为已阅。仅 partner（非作者）可调；已阅不重复打点。 */
@@ -526,11 +587,34 @@ export class PostService {
         errorKey: ErrorKey.E_POST_FORBIDDEN,
       });
     }
-    if (!doc.readAt) {
+    const wasUnread = !doc.readAt;
+    if (wasUnread) {
       doc.readAt = new Date();
       await doc.save();
     }
-    return doc.readAt;
+    if (wasUnread) {
+      const authorMap = await this.loadAuthorMap([doc.authorId]);
+      const evaluation = await this.loadEvaluation(String(doc._id));
+      const commentBlock = await this.loadCommentBlockForPosts(
+        [doc._id],
+        userId,
+      );
+      const postDto = this.toDto(
+        doc,
+        authorMap,
+        evaluation,
+        commentBlock.get(String(doc._id)) ?? {
+          comments: [],
+          commentCount: 0,
+        },
+        userId,
+      );
+      const ck = await this.coupleKeyForUser(userId);
+      if (ck) {
+        this.coupleRealtime.emitReportUpdated(ck, postDto);
+      }
+    }
+    return doc.readAt!;
   }
 
   // ---------- helpers：给其他 Service 用 ----------
@@ -545,6 +629,12 @@ export class PostService {
   }
 
   // ---------- private ----------
+
+  private async coupleKeyForUser(userId: string): Promise<string | null> {
+    const u = await this.userService.findById(userId);
+    if (!u?.partnerId) return null;
+    return makeCoupleKey(String(u._id), String(u.partnerId));
+  }
 
   private validateTags(type: PostType, tags: string[]): void {
     for (const t of tags) {
@@ -726,7 +816,7 @@ export class PostService {
     type CountRow = { _id: Types.ObjectId; count: number };
 
     // 一级预览：每个 post 取最早 POST_COMMENT_PREVIEW 条一级评论
-    const previews = (await this.postCommentModel
+    const previews = await this.postCommentModel
       .aggregate<PreviewRow>([
         {
           $match: {
@@ -760,15 +850,15 @@ export class PostService {
         { $unwind: '$items' },
         { $replaceRoot: { newRoot: '$items' } },
       ])
-      .exec()) as PreviewRow[];
+      .exec();
 
     // 总数：一级 + 回复一起算
-    const counts = (await this.postCommentModel
+    const counts = await this.postCommentModel
       .aggregate<CountRow>([
         { $match: { postId: { $in: postIds }, deletedAt: null } },
         { $group: { _id: '$postId', count: { $sum: 1 } } },
       ])
-      .exec()) as CountRow[];
+      .exec();
 
     const countMap = new Map<string, number>();
     for (const c of counts) countMap.set(String(c._id), c.count);
@@ -785,10 +875,7 @@ export class PostService {
     }
 
     // 初始化所有 postId 条目（确保 count>0 但 preview 可能为空时也有总数可取）
-    const postIdKeys = new Set<string>([
-      ...grouped.keys(),
-      ...countMap.keys(),
-    ]);
+    const postIdKeys = new Set<string>([...grouped.keys(), ...countMap.keys()]);
     for (const key of postIdKeys) {
       const rows = grouped.get(key) ?? [];
       const comments = rows.map((c) =>
@@ -853,7 +940,10 @@ export class PostService {
       id: String(doc._id),
       postId: String(doc.postId),
       authorId: String(doc.authorId),
-      author: this.toAuthorDto(authorMap.get(String(doc.authorId)), doc.authorId),
+      author: this.toAuthorDto(
+        authorMap.get(String(doc.authorId)),
+        doc.authorId,
+      ),
       text: doc.text,
       createdAt: toIsoString(doc.createdAt),
       updatedAt: toIsoString(doc.updatedAt),
@@ -874,9 +964,9 @@ export class PostService {
   ): PostCommentDto {
     return this.toPostCommentDtoFromParts(
       {
-        _id: c._id as Types.ObjectId,
+        _id: c._id,
         authorId: c.authorId,
-        parentId: (c.parentId as Types.ObjectId | null) ?? null,
+        parentId: c.parentId ?? null,
         text: c.text,
         createdAt: c.createdAt,
         editedAt: c.editedAt ?? null,

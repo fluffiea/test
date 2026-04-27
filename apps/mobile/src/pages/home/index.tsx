@@ -2,6 +2,8 @@ import { Picker, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useLoad } from '@tarojs/taro'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AnniversaryDto, PartnerBriefDto } from '@momoya/shared'
+import RealtimeStatusBanner from '../../components/RealtimeStatusBanner'
+import { on as onRealtime } from '../../realtime/eventBus'
 import { anniversaryApi } from '../../services/anniversary'
 import { ApiError } from '../../services/request'
 import { userApi } from '../../services/user'
@@ -86,6 +88,30 @@ export default function HomePage() {
     return unsub
   }, [])
 
+  /**
+   * 订阅纪念日实时事件：partner 端任意 CUD 都触发本端 reload。
+   * 由于纪念日数量小（上限有限），整体重拉成本可接受，比维护增量更新更稳。
+   */
+  useEffect(() => {
+    const offCreated = onRealtime<{ item: AnniversaryDto }>(
+      'anniversary:created',
+      () => setRefreshTick((n) => n + 1),
+    )
+    const offUpdated = onRealtime<{ item: AnniversaryDto }>(
+      'anniversary:updated',
+      () => setRefreshTick((n) => n + 1),
+    )
+    const offDeleted = onRealtime<{ id: string }>(
+      'anniversary:deleted',
+      () => setRefreshTick((n) => n + 1),
+    )
+    return () => {
+      offCreated()
+      offUpdated()
+      offDeleted()
+    }
+  }, [])
+
   const handleChangeDate = useCallback(
     async (item: AnniversaryDto, val: string) => {
       Taro.showLoading({ title: '保存中…', mask: true })
@@ -111,6 +137,7 @@ export default function HomePage() {
 
   return (
     <View className="min-h-screen" style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}>
+      <RealtimeStatusBanner />
       {/* 页面顶部 header */}
       <View
         className="relative overflow-hidden px-5 pb-5 pt-8"

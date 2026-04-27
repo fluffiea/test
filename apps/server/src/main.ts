@@ -8,6 +8,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { setupSwagger } from './common/swagger/setup-swagger';
 import type { AppConfig } from './config/configuration';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -15,10 +16,22 @@ async function bootstrap() {
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
 
+  const configEarly = app.get(ConfigService);
+  const redisUrl =
+    configEarly.get<string>('redisUrl') ?? 'redis://127.0.0.1:6379';
+  const redisIoAdapter = new RedisIoAdapter(app, redisUrl);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+
   app.setGlobalPrefix('api/v1', {
     exclude: ['static', 'static/(.*)'],
   });
-  app.use(helmet());
+  // Helmet 默认 CORP 可能拦截 Socket.IO 首次 HTTP long-polling 握手；小程序端也依赖 polling → websocket 升级
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+    }),
+  );
   app.enableCors({
     origin: true,
     credentials: true,

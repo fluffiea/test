@@ -2,6 +2,8 @@ export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
   port: number;
   mongodbUri: string;
+  /** Socket.IO `@socket.io/redis-adapter` 使用的连接串（compose 内为 redis://redis:6379） */
+  redisUrl: string;
   jwt: {
     accessSecret: string;
     accessTtl: string;
@@ -31,6 +33,7 @@ export default (): AppConfig => {
     nodeEnv,
     port: parseInt(process.env.PORT ?? '3000', 10),
     mongodbUri: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/momoya',
+    redisUrl: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
     jwt: {
       accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
       accessTtl: process.env.JWT_ACCESS_TTL ?? '2h',

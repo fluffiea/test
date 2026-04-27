@@ -1,2 +1,5 @@
 node_modules
 dist
+
+# Cursor Debug ingest 生成的 NDJSON 日志
+.cursor/debug*.log

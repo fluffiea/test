@@ -49,7 +49,9 @@ export default function DailyPanel({ active }: Props) {
 
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
-      if (prev.accessToken && !state.accessToken) resetDaily()
+      if (prev?.accessToken && !state.accessToken) {
+        resetDaily()
+      }
     })
     return unsub
   }, [resetDaily])

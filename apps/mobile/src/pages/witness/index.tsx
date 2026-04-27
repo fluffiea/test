@@ -2,6 +2,7 @@ import { Text, View } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_WITNESS_TAB, type WitnessDefaultTab } from '@momoya/shared'
+import RealtimeStatusBanner from '../../components/RealtimeStatusBanner'
 import { useAuthStore } from '../../store/authStore'
 import DailyPanel from './DailyPanel'
 import ReportPanel from './ReportPanel'
@@ -37,6 +38,7 @@ export default function WitnessPage() {
 
   return (
     <View className="flex h-full min-h-0 flex-col" style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}>
+      <RealtimeStatusBanner />
       {/* 顶部 header + tab 切换 */}
       <View
         className="relative overflow-hidden px-5 pb-4 pt-7"

@@ -211,7 +211,7 @@ Remove-Item $p
 
 全部变量见 `.env.example`。当前会用到：
 
-- `PORT`、`MONGODB_URI`
+- `PORT`、`MONGODB_URI`、`REDIS_URL`（Socket.IO `@socket.io/redis-adapter`；本机开发默认 `redis://127.0.0.1:6379`，Compose 生产为 `redis://redis:6379`）
 - `SWAGGER_ENABLED`、`SWAGGER_PATH`（调试接口用）
 - `JWT_ACCESS_SECRET` / `JWT_ACCESS_TTL`（默认 `2h`）
 - `JWT_REFRESH_SECRET` / `JWT_REFRESH_TTL`（默认 `14d`）

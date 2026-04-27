@@ -6,8 +6,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { EvaluationDto } from '@momoya/shared';
+import { makeCoupleKey } from '../../common/couple-key';
 import { ErrorKey } from '../../common/constants/error-keys';
 import { toIsoString } from '../../common/utils/date';
+import { CoupleRealtimeService } from '../realtime/couple-realtime.service';
 import { UserService } from '../user/user.service';
 import { PostService } from './post.service';
 import { Evaluation, EvaluationDocument } from './schemas/evaluation.schema';
@@ -19,6 +21,7 @@ export class EvaluationService {
     private readonly evaluationModel: Model<EvaluationDocument>,
     private readonly postService: PostService,
     private readonly userService: UserService,
+    private readonly coupleRealtime: CoupleRealtimeService,
   ) {}
 
   /**
@@ -96,7 +99,7 @@ export class EvaluationService {
           avatar: '',
         };
 
-    return {
+    const dto: EvaluationDto = {
       id: String(doc._id),
       postId: String(doc.postId),
       authorId: String(doc.authorId),
@@ -105,5 +108,26 @@ export class EvaluationService {
       createdAt: toIsoString(doc.createdAt),
       updatedAt: toIsoString(doc.updatedAt),
     };
+
+    // 评价更新影响 post 卡片上的评价区/已评指示，按 post 类型广播完整 PostDto；
+    // viewerId 取作者方（partnerId），让作者端拿到的预览权限是对的；
+    // 评价者本人详情页是当下拉到的最新 dto，不依赖 broadcast。
+    try {
+      const postDtoForAuthor = await this.postService.detail(
+        partnerId,
+        postId,
+        userId,
+      );
+      const ck = makeCoupleKey(userId, partnerId);
+      if (postDtoForAuthor.type === 'daily') {
+        this.coupleRealtime.emitDailyUpdated(ck, postDtoForAuthor);
+      } else if (postDtoForAuthor.type === 'report') {
+        this.coupleRealtime.emitReportUpdated(ck, postDtoForAuthor);
+      }
+    } catch {
+      // broadcast 失败不影响主流程：客户端 onShow / 下拉刷新会兜底
+    }
+
+    return dto;
   }
 }

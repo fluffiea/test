@@ -22,6 +22,7 @@ import {
 } from '../../../components/post-cards/shared'
 import { resolveAssetUrl } from '../../../config'
 import { useRemoteImage } from '../../../hooks/useRemoteImage'
+import { on as onRealtime } from '../../../realtime/eventBus'
 import { postApi } from '../../../services/post'
 import { ApiError } from '../../../services/request'
 import { useAuthStore } from '../../../store/authStore'
@@ -219,6 +220,67 @@ export default function PostDetail() {
     if (!post || post.type !== 'daily') return
     void loadFirstCommentsPage()
   }, [post?.id, post?.type, loadFirstCommentsPage])
+
+  /**
+   * 详情页订阅 comment:* 事件：
+   *   - 自己发出的事件回流时，本地已经插入/更新/删除过，按 id 去重避免重复；
+   *   - 对方触发的事件，按事件直接更新本地 comments 树。
+   * 同时同步 post.commentCount，让详情页底部的「评论 · N」与服务端一致。
+   */
+  useEffect(() => {
+    if (!post || post.type !== 'daily') return
+    const pid = post.id
+
+    const offAdded = onRealtime<{
+      postId: string
+      comment: PostCommentDto
+      parentId: string | null
+    }>('comment:added', ({ postId: pId, comment, parentId }) => {
+      if (pId !== pid) return
+      setComments((prev) => {
+        if (commentExists(prev, comment.id)) return prev
+        if (parentId) return applyReplyInsert(prev, parentId, comment)
+        return [...prev, comment]
+      })
+      setPost((p) =>
+        p && p.id === pid ? { ...p, commentCount: (p.commentCount ?? 0) + 1 } : p,
+      )
+    })
+
+    const offUpdated = onRealtime<{ postId: string; comment: PostCommentDto }>(
+      'comment:updated',
+      ({ postId: pId, comment }) => {
+        if (pId !== pid) return
+        setComments((prev) => applyCommentUpdate(prev, comment))
+      },
+    )
+
+    const offDeleted = onRealtime<{
+      postId: string
+      commentId: string
+      parentId: string | null
+    }>('comment:deleted', ({ postId: pId, commentId, parentId }) => {
+      if (pId !== pid) return
+      setComments((prev) => {
+        if (!commentExists(prev, commentId)) return prev
+        return applyCommentRemove(prev, {
+          id: commentId,
+          parentId,
+        } as PostCommentDto)
+      })
+      setPost((p) =>
+        p && p.id === pid
+          ? { ...p, commentCount: Math.max(0, (p.commentCount ?? 0) - 1) }
+          : p,
+      )
+    })
+
+    return () => {
+      offAdded()
+      offUpdated()
+      offDeleted()
+    }
+  }, [post?.id, post?.type])
 
   // 报备：非作者进入时自动打点已阅（只跑一次；失败允许重试）
   const performAutoMarkRead = useCallback(
@@ -1249,6 +1311,15 @@ function EvaluationInputSheet({
 }
 
 // ---------- 本地更新 helpers ----------
+
+/** 评论 id 是否已经存在于树中（一级或回复） */
+function commentExists(list: PostCommentDto[], id: string): boolean {
+  for (const c of list) {
+    if (c.id === id) return true
+    if (c.replies && c.replies.some((r) => r.id === id)) return true
+  }
+  return false
+}
 
 /** 把编辑后的评论写回树（可能是一级评论也可能是回复） */
 function applyCommentUpdate(

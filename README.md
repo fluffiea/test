@@ -2,7 +2,7 @@
 
 情侣日常记录小程序（monorepo）。
 
-- `apps/server`：NestJS 11 服务端（MongoDB + Socket.io，当前进度 M2 登录体系）
+- `apps/server`：NestJS 11 服务端（MongoDB + Redis + Socket.IO 实时，与 HTTP 同端口）
 - `apps/mobile`：Taro 4.2（Vite）+ React 18 + Tailwind v4 + weapp-tailwindcss + Zustand
 
 当前完成：**M1 基建** · **M2 登录体系**（双 Token + 严格单设备挤占）· **M3 资料编辑 + 图片上传基建** · **M4 日常时间轴**（发布 / 二人共享列表 / 游标分页 / 软删）。
@@ -16,7 +16,7 @@ pnpm install
 # 2. 准备后端 .env（首次）
 Copy-Item apps/server/.env.example apps/server/.env
 
-# 3. 启动开发用 MongoDB（Docker 方式，推荐）
+# 3. 启动开发用 MongoDB + Redis（Docker Compose，推荐）
 pnpm docker:dev:up
 
 # 4. 同时启动后端与小程序构建
@@ -30,7 +30,15 @@ pnpm dev:server   # 仅后端
 pnpm dev:weapp    # 仅小程序
 ```
 
-> 如果你本机已经装了 MongoDB 7+，也可以跳过第 3 步，直接让服务端连 `mongodb://127.0.0.1:27017`。
+> 如果你本机已经装了 MongoDB 7+，也可以跳过 Compose 里的 mongo 服务，但仍建议 **用 Compose 起 Redis**（`redis:6379` 映射到本机），并在 `apps/server/.env` 中设置 `REDIS_URL=redis://127.0.0.1:6379`（见 `apps/server/.env.example`）。**不设 Redis 或 Redis 未启动时，Nest 进程会在连接 adapter 阶段直接退出。**
+
+### 日常列表实时推送（Socket.IO）
+
+- **App 全局**（已 hydrate、已登录且已绑定伴侣）即连接 Socket.IO；**不要**只在「见证」tab 挂载时才建连——微信小程序 tabBar 子页按需加载，用户从未点开「见证」时见证页不会挂载，会导致双方永远收不到实时事件。
+- 与 API **同源**（默认路径 `/socket.io`）。事件：**日常** `daily:created` / `daily:updated` / `daily:deleted`；**报备** `report:created` / `report:updated` / `report:deleted`（报备列表侧收到后走 `refresh` 以对齐筛选）。开发包控制台会打印 `[momoya] couple realtime socket connected`。
+- 小程序端默认 `WS_ORIGIN_URL` 与 `API_BASE_URL` 同 host；可用环境变量 **`TARO_APP_WS_URL`** 覆盖（与 `TARO_APP_DEV_API_HOST` 用法类似，见 `apps/mobile/.env.development`）。
+- **生产**：需 **WSS** 与合法域名；在微信公众平台配置 **socket 合法域名**（与 request 域名可为同一 HTTPS 域名）。
+- **真机调试**：除放行 HTTP **3000** 入站外，若走 WSS/防火墙策略不同，请一并保证 WebSocket 升级流量可达（与 HTTP 同端口时通常无需额外开端口）。
 
 ## 接口调试（Apifox / Swagger）
 

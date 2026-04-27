@@ -63,10 +63,20 @@ function buildUploadParts(now: Date): {
               const now = r._uploadNow ?? (r._uploadNow = new Date());
               const { basenamePrefix } = buildUploadParts(now);
               const shortId = uuidv4().replace(/-/g, '').slice(0, 8);
-              const ext =
-                MIME_EXT_MAP[file.mimetype] ??
-                path.extname(file.originalname) ??
-                '';
+              const ext = MIME_EXT_MAP[file.mimetype];
+              if (!ext) {
+                cb(
+                  new HttpException(
+                    {
+                      message: '无法确定文件扩展名',
+                      errorKey: ErrorKey.E_VALIDATION,
+                    },
+                    HttpStatus.BAD_REQUEST,
+                  ),
+                  '',
+                );
+                return;
+              }
               cb(null, `${basenamePrefix}-${shortId}${ext}`);
             },
           }),
