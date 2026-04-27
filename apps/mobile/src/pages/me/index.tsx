@@ -21,7 +21,7 @@ const HEADER_FLOATERS = [
 const MENU_ITEMS = [
   { label: '编辑资料', key: 'edit' },
   { label: '修改密码', key: 'password' },
-  { label: '设置', key: 'settings' },
+  { label: '偏好设置', key: 'settings' },
 ] as const
 
 const ICON_SLOT = px(44)

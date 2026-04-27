@@ -38,6 +38,28 @@ function normalizeDate(raw: string): Date {
   );
 }
 
+/** PATCH 纪念日 `date`：保留到 UTC 分钟（秒、毫秒归零），供「在一起」设置精确到分。 */
+function normalizeDateTimeToUtcMinute(raw: string): Date {
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException({
+      message: 'date 不是合法的 ISO 日期时间',
+      errorKey: ErrorKey.E_VALIDATION,
+    });
+  }
+  return new Date(
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      d.getUTCHours(),
+      d.getUTCMinutes(),
+      0,
+      0,
+    ),
+  );
+}
+
 /**
  * 情侣共享 key：把两个 userId 字符串按字典序排后拼接。
  * 任意一方都能算出同一个 key，查询/写入都走它。
@@ -128,7 +150,13 @@ export class AnniversaryService {
       doc.name = dto.name.trim();
     }
     if (dto.date !== undefined) {
-      doc.date = normalizeDate(dto.date);
+      const nextDate = doc.isSystem
+        ? normalizeDateTimeToUtcMinute(dto.date)
+        : normalizeDate(dto.date);
+      if (nextDate.getTime() !== doc.date.getTime()) {
+        doc.date = nextDate;
+        doc.lastDateEditedBy = new Types.ObjectId(userId);
+      }
     }
 
     await doc.save();
@@ -208,6 +236,9 @@ function toDto(doc: AnniversaryDocument): AnniversaryDto {
     date: toIsoString(doc.date),
     createdBy: doc.createdBy ? String(doc.createdBy) : null,
     isSystem: doc.isSystem,
+    lastDateEditedBy: doc.lastDateEditedBy
+      ? String(doc.lastDateEditedBy)
+      : null,
     createdAt: toIsoString(doc.createdAt),
     updatedAt: toIsoString(doc.updatedAt),
   };

@@ -28,6 +28,7 @@ import { useAuthStore } from '../../../store/authStore'
 import { useDailyStore, useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute, formatRelative } from '../../../utils/time'
 import { previewPostImages } from '../../../utils/previewPostImages'
+import { showToastThen } from '../../../utils/showToastThen'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -116,8 +117,13 @@ export default function PostDetail() {
     async (options?: { silent?: boolean }) => {
       const silent = options?.silent === true
       if (!postId) {
-        Taro.showToast({ title: '参数错误', icon: 'none' })
-        setTimeout(() => Taro.navigateBack(), 500)
+        showToastThen(
+          { title: '参数错误', icon: 'none' },
+          () => {
+            void Taro.navigateBack()
+          },
+          { delayMs: 500 },
+        )
         return
       }
       if (!silent) {
@@ -133,8 +139,13 @@ export default function PostDetail() {
       } catch (err) {
         if (!silent) {
           const msg = err instanceof ApiError ? err.msg : '加载失败'
-          Taro.showToast({ title: msg, icon: 'none' })
-          setTimeout(() => Taro.navigateBack(), 500)
+          showToastThen(
+            { title: msg, icon: 'none' },
+            () => {
+              void Taro.navigateBack()
+            },
+            { delayMs: 500 },
+          )
         }
       } finally {
         if (!silent) {
@@ -269,8 +280,13 @@ export default function PostDetail() {
       if (post.type === 'daily') dailyRemove(post.id)
       else reportRemove(post.id)
       Taro.hideLoading()
-      Taro.showToast({ title: '已删除', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 500)
+      showToastThen(
+        { title: '已删除', icon: 'success' },
+        () => {
+          void Taro.navigateBack()
+        },
+        { delayMs: 500 },
+      )
     } catch (err) {
       Taro.hideLoading()
       const msg = err instanceof ApiError ? err.msg : '删除失败'

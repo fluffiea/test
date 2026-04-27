@@ -27,6 +27,13 @@ export class AnniversaryDto implements AnniversaryShape {
   @ApiProperty({ example: true, description: '系统纪念日不可删、不可改名' })
   isSystem!: boolean;
 
+  @ApiProperty({
+    example: null,
+    nullable: true,
+    description: '最近一次 PATCH 修改 date 的用户 id；未改过则为 null',
+  })
+  lastDateEditedBy!: string | null;
+
   @ApiProperty({ example: '2024-05-20T00:00:00.000Z' })
   createdAt!: string;
 

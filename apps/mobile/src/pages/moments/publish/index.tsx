@@ -17,6 +17,7 @@ import { useAuthStore } from '../../../store/authStore'
 import { useDailyStore } from '../../../store/postFeedStore'
 import { parseTagInput } from '../../../utils/tagInput'
 import { previewPostImages } from '../../../utils/previewPostImages'
+import { showToastThen } from '../../../utils/showToastThen'
 import { formatAbsolute } from '../../../utils/time'
 
 const px = (n: number) => Taro.pxTransform(n)
@@ -69,8 +70,13 @@ export default function PublishDaily() {
       .detail(editingId)
       .then((p) => {
         if (p.type !== 'daily') {
-          Taro.showToast({ title: '类型不匹配', icon: 'none' })
-          setTimeout(() => Taro.navigateBack(), 500)
+          showToastThen(
+            { title: '类型不匹配', icon: 'none' },
+            () => {
+              void Taro.navigateBack()
+            },
+            { delayMs: 500 },
+          )
           return
         }
         setText(p.text)
@@ -87,8 +93,13 @@ export default function PublishDaily() {
       })
       .catch((err) => {
         const msg = err instanceof ApiError ? err.msg : '加载失败'
-        Taro.showToast({ title: msg, icon: 'none' })
-        setTimeout(() => Taro.navigateBack(), 500)
+        showToastThen(
+          { title: msg, icon: 'none' },
+          () => {
+            void Taro.navigateBack()
+          },
+          { delayMs: 500 },
+        )
       })
       .finally(() => setLoadingPost(false))
   }, [editingId])
@@ -221,8 +232,13 @@ export default function PublishDaily() {
         prepend(created)
       }
       Taro.hideLoading()
-      Taro.showToast({ title: isEditing ? '已保存' : '已发布', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 500)
+      showToastThen(
+        { title: isEditing ? '已保存' : '已发布', icon: 'success' },
+        () => {
+          void Taro.navigateBack()
+        },
+        { delayMs: 500 },
+      )
     } catch (err) {
       Taro.hideLoading()
       const msg = err instanceof ApiError ? err.msg : err instanceof Error ? err.message : '发布失败'

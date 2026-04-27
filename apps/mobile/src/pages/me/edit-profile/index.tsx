@@ -8,6 +8,7 @@ import { ApiError } from '../../../services/request'
 import { uploadImage } from '../../../services/upload'
 import { userApi } from '../../../services/user'
 import { useAuthStore } from '../../../store/authStore'
+import { showToastThen } from '../../../utils/showToastThen'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -131,8 +132,13 @@ export default function EditProfile() {
       const updated = await userApi.updateMe(patch)
       setUser(updated)
       Taro.hideLoading()
-      Taro.showToast({ title: '已保存', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 500)
+      showToastThen(
+        { title: '已保存', icon: 'success' },
+        () => {
+          void Taro.navigateBack()
+        },
+        { delayMs: 500 },
+      )
     } catch (e) {
       Taro.hideLoading()
       const msg = e instanceof ApiError ? e.msg : e instanceof Error ? e.message : '保存失败'

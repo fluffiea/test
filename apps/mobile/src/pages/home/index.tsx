@@ -1,29 +1,20 @@
 import { Picker, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useLoad } from '@tarojs/taro'
-import { useCallback, useEffect, useState } from 'react'
-import type { AnniversaryDto } from '@momoya/shared'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { AnniversaryDto, PartnerBriefDto } from '@momoya/shared'
 import { anniversaryApi } from '../../services/anniversary'
 import { ApiError } from '../../services/request'
+import { userApi } from '../../services/user'
 import { useAuthStore } from '../../store/authStore'
 import {
   computeAnniversaryStats,
   formatMonthDay,
+  isoToPickerValue,
+  pickerValueToIso,
 } from '../../utils/anniversary'
+import { TogetherAnniversaryHero } from './TogetherAnniversaryHero'
 
 const px = (n: number) => Taro.pxTransform(n)
-
-function isoToPickerValue(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function pickerValueToIso(val: string): string {
-  return `${val}T00:00:00.000Z`
-}
 
 const HEADER_FLOATERS = [
   { char: '✿', cls: 'float-anim', pos: { top: '14%', right: '8%' }, delay: '0.3s', size: 44, color: '#A0AF84' },
@@ -34,6 +25,7 @@ const HEADER_FLOATERS = [
 export default function HomePage() {
   const user = useAuthStore((s) => s.user)
   const [items, setItems] = useState<AnniversaryDto[]>([])
+  const [partner, setPartner] = useState<PartnerBriefDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -51,6 +43,12 @@ export default function HomePage() {
     try {
       const res = await anniversaryApi.list()
       setItems(res.items)
+      try {
+        const p = await userApi.getPartner()
+        setPartner(p)
+      } catch {
+        setPartner(null)
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.errorKey !== 'E_ANNIV_FORBIDDEN') {
@@ -60,6 +58,7 @@ export default function HomePage() {
         Taro.showToast({ title: '加载失败', icon: 'none' })
       }
       setItems([])
+      setPartner(null)
     } finally {
       setLoading(false)
     }
@@ -79,7 +78,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
-      if (prev.accessToken && !state.accessToken) setItems([])
+      if (prev.accessToken && !state.accessToken) {
+        setItems([])
+        setPartner(null)
+      }
     })
     return unsub
   }, [])
@@ -100,6 +102,12 @@ export default function HomePage() {
     },
     [],
   )
+
+  const together = useMemo(
+    () => items.find((a) => a.isSystem) ?? null,
+    [items],
+  )
+  const rest = useMemo(() => items.filter((a) => !a.isSystem), [items])
 
   return (
     <View className="min-h-screen" style={{ backgroundColor: 'rgba(195,181,159,0.18)' }}>
@@ -141,14 +149,21 @@ export default function HomePage() {
             <Text className="text-sm" style={{ color: '#C3B59F' }}>暂时还没有纪念日</Text>
           </View>
         ) : (
-          <View className="grid grid-cols-2 gap-3">
-            {items.map((a) => (
-              <AnniversaryCard
-                key={a.id}
-                item={a}
-                onChangeDate={(val) => void handleChangeDate(a, val)}
-              />
-            ))}
+          <View>
+            {together ? (
+              <TogetherAnniversaryHero item={together} me={user} partner={partner} />
+            ) : null}
+            {rest.length > 0 ? (
+              <View className="grid grid-cols-2 gap-3">
+                {rest.map((a) => (
+                  <AnniversaryCard
+                    key={a.id}
+                    item={a}
+                    onChangeDate={(val) => void handleChangeDate(a, val)}
+                  />
+                ))}
+              </View>
+            ) : null}
           </View>
         )}
       </View>
@@ -185,14 +200,6 @@ function AnniversaryCard({ item, onChangeDate }: CardProps) {
           >
             {item.name}
           </Text>
-          {item.isSystem ? (
-            <View
-              className="shrink-0 rounded-full px-1.5 py-0.5"
-              style={{ backgroundColor: 'rgba(160,175,132,0.2)' }}
-            >
-              <Text style={{ fontSize: px(20), color: '#A0AF84' }}>系统</Text>
-            </View>
-          ) : null}
         </View>
         <Text style={{ fontSize: px(22), color: '#C3B59F' }}>{formatMonthDay(item.date)}</Text>
         <View className="mt-1 flex items-baseline gap-0.5">

@@ -5,6 +5,7 @@ import { ErrorKey, PASSWORD_MIN } from '@momoya/shared'
 import { authApi } from '../../../services/auth'
 import { ApiError } from '../../../services/request'
 import { useAuthStore } from '../../../store/authStore'
+import { showToastThen } from '../../../utils/showToastThen'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -58,8 +59,13 @@ export default function ChangePassword() {
         refreshExpiresIn: result.refreshExpiresIn,
       })
       Taro.hideLoading()
-      Taro.showToast({ title: '修改成功', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 600)
+      showToastThen(
+        { title: '修改成功', icon: 'success' },
+        () => {
+          void Taro.navigateBack()
+        },
+        { delayMs: 600 },
+      )
     } catch (e) {
       Taro.hideLoading()
       if (e instanceof ApiError && e.errorKey === ErrorKey.E_AUTH_WRONG_OLD_PASSWORD) {

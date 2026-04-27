@@ -25,6 +25,7 @@ import { useAuthStore } from '../../../store/authStore'
 import { useReportStore } from '../../../store/postFeedStore'
 import { formatAbsolute } from '../../../utils/time'
 import { previewPostImages } from '../../../utils/previewPostImages'
+import { showToastThen } from '../../../utils/showToastThen'
 
 const px = (n: number) => Taro.pxTransform(n)
 
@@ -92,8 +93,13 @@ export default function PublishReport() {
       .detail(editingId)
       .then((p) => {
         if (p.type !== 'report') {
-          Taro.showToast({ title: '类型不匹配', icon: 'none' })
-          setTimeout(() => Taro.navigateBack(), 500)
+          showToastThen(
+            { title: '类型不匹配', icon: 'none' },
+            () => {
+              void Taro.navigateBack()
+            },
+            { delayMs: 500 },
+          )
           return
         }
         setText(p.text)
@@ -110,8 +116,13 @@ export default function PublishReport() {
       })
       .catch((err) => {
         const msg = err instanceof ApiError ? err.msg : '加载失败'
-        Taro.showToast({ title: msg, icon: 'none' })
-        setTimeout(() => Taro.navigateBack(), 500)
+        showToastThen(
+          { title: msg, icon: 'none' },
+          () => {
+            void Taro.navigateBack()
+          },
+          { delayMs: 500 },
+        )
       })
       .finally(() => setLoadingPost(false))
   }, [editingId])
@@ -312,8 +323,13 @@ export default function PublishReport() {
         prepend(created)
       }
       Taro.hideLoading()
-      Taro.showToast({ title: isEditing ? '已保存' : '已报备', icon: 'success' })
-      setTimeout(() => Taro.navigateBack(), 500)
+      showToastThen(
+        { title: isEditing ? '已保存' : '已报备', icon: 'success' },
+        () => {
+          void Taro.navigateBack()
+        },
+        { delayMs: 500 },
+      )
     } catch (err) {
       Taro.hideLoading()
       const msg = err instanceof ApiError ? err.msg : err instanceof Error ? err.message : '发布失败'

@@ -39,6 +39,17 @@ export class Anniversary {
   @Prop({ type: Boolean, default: false })
   isSystem!: boolean;
 
+  /**
+   * 最近一次通过 PATCH 修改 `date` 的用户；仅在实际变更 date 时写入。
+   * 系统 seed 初始化为 null；`updatedAt` 表示该行最后一次任意保存时间。
+   */
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  })
+  lastDateEditedBy!: Types.ObjectId | null;
+
   createdAt!: Date;
   updatedAt!: Date;
 }

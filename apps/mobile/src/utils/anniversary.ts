@@ -7,6 +7,8 @@
  * 所有计算都落到 UTC 零点，避免时区抖动造成 ±1 天偏差。
  */
 const MS_DAY = 24 * 60 * 60 * 1000
+const MS_HOUR = 60 * 60 * 1000
+const MS_MINUTE = 60 * 1000
 
 function toUtcMidnight(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
@@ -57,4 +59,70 @@ export function formatMonthDay(dateIso: string): string {
   const d = new Date(dateIso)
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getUTCMonth() + 1} 月 ${d.getUTCDate()} 日`
+}
+
+/** ISO（UTC）→ `YYYY-MM-DD`，供 Taro `Picker mode="date"`。 */
+export function isoToPickerValue(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Picker 返回值 → 后端 ISO UTC 零点。 */
+export function pickerValueToIso(val: string): string {
+  return `${val}T00:00:00.000Z`
+}
+
+/**
+ * 「在一起」从某一时刻起的累计天与当日内时分秒（与日历日无关，按真实时间间隔）。
+ */
+export function computeTogetherElapsed(
+  dateIso: string,
+  now: Date = new Date(),
+): { totalDays: number; hours: number; minutes: number; seconds: number } {
+  const t0 = new Date(dateIso).getTime()
+  const t1 = now.getTime()
+  if (Number.isNaN(t0) || t1 < t0) {
+    return { totalDays: 0, hours: 0, minutes: 0, seconds: 0 }
+  }
+  let ms = t1 - t0
+  const totalDays = Math.floor(ms / MS_DAY)
+  ms -= totalDays * MS_DAY
+  const hours = Math.floor(ms / MS_HOUR)
+  ms -= hours * MS_HOUR
+  const minutes = Math.floor(ms / MS_MINUTE)
+  ms -= minutes * MS_MINUTE
+  const seconds = Math.floor(ms / 1000)
+  return { totalDays, hours, minutes, seconds }
+}
+
+/**
+ * ISO（任意 UTC）→ `YYYY-MM-DD HH:mm` **本地墙钟**，供设置页日期 + 时刻两个 Picker 组合使用。
+ */
+export function isoToDatetimeLocalPickerValue(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day} ${h}:${min}`
+}
+
+/** `YYYY-MM-DD HH:mm` 本地 → UTC ISO（秒为 0）；无法解析时返回 `null`。 */
+export function datetimeLocalPickerValueToUtcIso(val: string): string | null {
+  const m = val.trim().match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})$/)
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  const h = Number(m[4])
+  const mi = Number(m[5])
+  const out = new Date(y, mo - 1, d, h, mi, 0, 0)
+  if (Number.isNaN(out.getTime())) return null
+  return out.toISOString()
 }

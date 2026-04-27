@@ -5,6 +5,7 @@ import { PASSWORD_MIN } from '@momoya/shared'
 import { ApiError } from '../../services/request'
 import { authApi } from '../../services/auth'
 import { useAuthStore } from '../../store/authStore'
+import { showToastThen } from '../../utils/showToastThen'
 
 const ACCOUNTS = ['jiangjiang', 'mengmeng'] as const
 
@@ -134,10 +135,13 @@ export default function Login() {
         refreshExpiresIn: result.refreshExpiresIn,
         user: result.user,
       })
-      Taro.showToast({ title: `欢迎回来，${result.user.nickname} ♡`, icon: 'success' })
-      setTimeout(() => {
-        Taro.reLaunch({ url: '/pages/home/index' })
-      }, 600)
+      showToastThen(
+        { title: `欢迎回来，${result.user.nickname} ♡`, icon: 'success' },
+        () => {
+          void Taro.reLaunch({ url: '/pages/home/index' })
+        },
+        { delayMs: 600 },
+      )
     } catch (err) {
       const msg =
         err instanceof ApiError ? err.msg : err instanceof Error ? err.message : '登录失败'

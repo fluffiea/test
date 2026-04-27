@@ -7,12 +7,17 @@ export interface AnniversaryDto {
   id: string;
   /** 显示名字，如「在一起」「生日」 */
   name: string;
-  /** ISO 日期，忽略时分秒，只关心年月日 */
+  /** ISO 日期时间（UTC）。「在一起」系统纪念日可含时分；其余纪念日仍为 UTC 日界线。 */
   date: string;
   /** 创建者 userId；系统纪念日为 null */
   createdBy: string | null;
   /** system 纪念日：不可删除、不可改名，只能改日期 */
   isSystem: boolean;
+  /**
+   * 最近一次修改纪念日的 `date` 的用户 id；从未手动改过日期则为 null。
+   * 展示「最后修改人」时配合 `updatedAt`（system 行仅允许改 date，故 updatedAt 即上次改日期时间）。
+   */
+  lastDateEditedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
