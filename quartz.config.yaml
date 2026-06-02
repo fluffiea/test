@@ -9,6 +9,10 @@ configuration:
   ignorePatterns:
     - ".obsidian"
     - ".DS_Store"
+    - ".github"            # 优化：在网页中隐藏 CI/CD 文件夹
+    - "quartz.config.yaml" # 优化：在网页中隐藏配置文件
+    - ".gitignore"         # 优化：在网页中隐藏 Git 忽略文件
+    - "resources"          # 💡 极其关键：修复子路径部署时 CSS/JS 路径丢失、布局塌陷到左下角的问题
 
   theme:
     fontOrigin: "googleFonts"
