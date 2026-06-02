@@ -1,0 +1,147 @@
+configuration:
+  pageTitle: "test"
+  pageTitleSuffix: ""
+  enableSPA: true
+  enablePopovers: true
+  analytics: null
+  locale: "zh-CN"
+  baseUrl: "fluffiea.github.io/test"
+  ignorePatterns:
+    - ".obsidian"
+    - ".DS_Store"
+
+  theme:
+    fontOrigin: "googleFonts"
+    cdnCaching: true
+    typography:
+      header: "Schibsted Grotesk"
+      body: "Source Sans Pro"
+      code: "IBM Plex Mono"
+    colors:
+      lightMode:
+        light: "#faf8f8"
+        lightgray: "#e5e5e5"
+        gray: "#b8b8b8"
+        darkgray: "#4e4e4e"
+        dark: "#2b2b2b"
+        secondary: "#284b63"
+        tertiary: "#84a59d"
+        highlight: "rgba(143, 223, 130, 0.15)"
+        textHighlight: "#fff23688"
+      darkMode:
+        light: "#161618"
+        lightgray: "#393639"
+        gray: "#646464"
+        darkgray: "#d4d4d4"
+        dark: "#ebebec"
+        secondary: "#7b97aa"
+        tertiary: "#84a59d"
+        highlight: "rgba(143, 223, 130, 0.15)"
+        textHighlight: "#b3aa0288"
+
+plugins:
+  - source: "quartz/plugins/transformers/created-modified-date"
+    enabled: true
+    order: 10
+  - source: "quartz/plugins/transformers/syntax-highlighting"
+    enabled: true
+    order: 20
+  - source: "quartz/plugins/transformers/obsidian-flavored-markdown"
+    enabled: true
+    order: 30
+  - source: "quartz/plugins/transformers/github-flavored-markdown"
+    enabled: true
+    order: 40
+  - source: "quartz/plugins/transformers/table-of-contents"
+    enabled: true
+    order: 50
+  - source: "quartz/plugins/transformers/crawl-links"
+    enabled: true
+    order: 60
+  - source: "quartz/plugins/transformers/description"
+    enabled: true
+    order: 70
+  - source: "quartz/plugins/transformers/latex"
+    enabled: true
+    order: 80
+  - source: "quartz/plugins/transformers/citations"
+    enabled: false
+    order: 85
+  - source: "quartz/plugins/transformers/hard-line-breaks"
+    enabled: false
+    order: 90
+  - source: "quartz/plugins/transformers/ox-hugo"
+    enabled: false
+    order: 91
+  - source: "quartz/plugins/transformers/roam"
+    enabled: false
+    order: 92
+  - source: "quartz/plugins/transformers/remove-draft"
+    enabled: true
+  - source: "quartz/plugins/transformers/explicit-publish"
+    enabled: false
+  - source: "quartz/plugins/transformers/alias-redirects"
+    enabled: true
+  - source: "quartz/plugins/transformers/content-index"
+    enabled: true
+    options:
+      enableSiteMap: true
+      enableRSS: true
+  - source: "quartz/plugins/transformers/favicon"
+    enabled: true
+  - source: "quartz/plugins/transformers/og-image"
+    enabled: true
+  - source: "quartz/plugins/transformers/cname"
+    enabled: true
+  - source: "quartz/plugins/transformers/note-properties"
+    enabled: true
+
+  - source: "quartz/plugins/pages/canvas-page"
+    enabled: true
+  - source: "quartz/plugins/pages/content-page"
+    enabled: true
+  - source: "quartz/plugins/pages/folder-page"
+    enabled: true
+  - source: "quartz/plugins/pages/tag-page"
+    enabled: true
+
+  - source: "quartz/layout/components/explorer"
+    enabled: true
+  - source: "quartz/layout/components/graph"
+    enabled: true
+  - source: "quartz/layout/components/search"
+    enabled: true
+  - source: "quartz/layout/components/backlinks"
+    enabled: true
+  - source: "quartz/layout/components/article-title"
+    enabled: true
+  - source: "quartz/layout/components/content-meta"
+    enabled: true
+  - source: "quartz/layout/components/tag-list"
+    enabled: false
+  - source: "quartz/layout/components/page-title"
+    enabled: true
+  - source: "quartz/layout/components/darkmode"
+    enabled: true
+  - source: "quartz/layout/components/reader-mode"
+    enabled: true
+  - source: "quartz/layout/components/breadcrumbs"
+    enabled: true
+  - source: "quartz/layout/components/comments"
+    enabled: false
+  - source: "quartz/layout/components/footer"
+    enabled: true
+    options:
+      links:
+        - text: "GitHub"
+          link: "https://github.com/fluffiea/test"
+  - source: "quartz/layout/components/recent-notes"
+    enabled: false
+  - source: "quartz/layout/components/spacer"
+    enabled: true
+  - source: "quartz/layout/components/unlisted-pages"
+    enabled: true
+  - source: "quartz/layout/components/encrypted-pages"
+    enabled: true
+  - source: "quartz/layout/components/stacked-pages"
+    enabled: false
