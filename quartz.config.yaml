@@ -187,9 +187,8 @@ plugins:
       passwordField: "password"
       unlistWhenEncrypted: false
       outputPath: "static/encryptedContentIndex.json"
+      display: "all"
     order: 900
     layout:
       position: "body"
       priority: 100
-    options:
-      display: "all"
