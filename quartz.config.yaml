@@ -40,108 +40,156 @@ configuration:
         textHighlight: "#b3aa0288"
 
 plugins:
-  - source: "quartz/plugins/transformers/created-modified-date"
+  - source: "github:quartz-community/created-modified-date"
     enabled: true
+    options:
+      defaultDateType: "modified"
+    priority: ["frontmatter", "git", "filesystem"]
     order: 10
-  - source: "quartz/plugins/transformers/syntax-highlighting"
+  - source: "github:quartz-community/syntax-highlighting"
     enabled: true
     order: 20
-  - source: "quartz/plugins/transformers/obsidian-flavored-markdown"
+  - source: "github:quartz-community/obsidian-flavored-markdown"
     enabled: true
     order: 30
-  - source: "quartz/plugins/transformers/github-flavored-markdown"
+  - source: "github:quartz-community/github-flavored-markdown"
     enabled: true
     order: 40
-  - source: "quartz/plugins/transformers/table-of-contents"
+  - source: "github:quartz-community/table-of-contents"
     enabled: true
     order: 50
-  - source: "quartz/plugins/transformers/crawl-links"
+    layout:
+      position: "right"
+      priority: 30
+  - source: "github:quartz-community/crawl-links"
     enabled: true
     order: 60
-  - source: "quartz/plugins/transformers/description"
+  - source: "github:quartz-community/description"
     enabled: true
     order: 70
-  - source: "quartz/plugins/transformers/latex"
+  - source: "github:quartz-community/latex"
     enabled: true
     order: 80
-  - source: "quartz/plugins/transformers/citations"
-    enabled: false
-    order: 85
-  - source: "quartz/plugins/transformers/hard-line-breaks"
-    enabled: false
-    order: 90
-  - source: "quartz/plugins/transformers/ox-hugo"
-    enabled: false
-    order: 91
-  - source: "quartz/plugins/transformers/roam"
-    enabled: false
-    order: 92
-  - source: "quartz/plugins/transformers/remove-draft"
+  - source: "github:quartz-community/remove-draft"
     enabled: true
-  - source: "quartz/plugins/transformers/explicit-publish"
-    enabled: false
-  - source: "quartz/plugins/transformers/alias-redirects"
+  - source: "github:quartz-community/alias-redirects"
     enabled: true
-  - source: "quartz/plugins/transformers/content-index"
+  - source: "github:quartz-community/content-index"
     enabled: true
     options:
       enableSiteMap: true
       enableRSS: true
-  - source: "quartz/plugins/transformers/favicon"
+  - source: "github:quartz-community/favicon"
     enabled: true
-  - source: "quartz/plugins/transformers/og-image"
+  - source: "github:quartz-community/og-image"
     enabled: true
-  - source: "quartz/plugins/transformers/cname"
+  - source: "github:quartz-community/cname"
     enabled: true
-  - source: "quartz/plugins/transformers/note-properties"
+  - source: "github:quartz-community/note-properties"
+    enabled: true
+    options:
+      includeAll: false
+      includedProperties:
+        - "description"
+        - "tags"
+        - "aliases"
+      excludedProperties: []
+      hidePropertiesView: false
+      delimiters: "---"
+      language: "yaml"
+    order: 5
+    layout:
+      position: "beforeBody"
+      priority: 15
+
+  - source: "github:quartz-community/canvas-page"
+    enabled: true
+  - source: "github:quartz-community/content-page"
+    enabled: true
+  - source: "github:quartz-community/folder-page"
+    enabled: true
+  - source: "github:quartz-community/tag-page"
     enabled: true
 
-  - source: "quartz/plugins/pages/canvas-page"
+  - source: "github:quartz-community/explorer"
     enabled: true
-  - source: "quartz/plugins/pages/content-page"
+    layout:
+      position: "left"
+      priority: 50
+  - source: "github:quartz-community/graph"
     enabled: true
-  - source: "quartz/plugins/pages/folder-page"
+    layout:
+      position: "right"
+      priority: 10
+  - source: "github:quartz-community/search"
     enabled: true
-  - source: "quartz/plugins/pages/tag-page"
+    layout:
+      position: "left"
+      priority: 20
+  - source: "github:quartz-community/backlinks"
     enabled: true
-
-  - source: "quartz/layout/components/explorer"
+    layout:
+      position: "right"
+      priority: 50
+  - source: "github:quartz-community/article-title"
     enabled: true
-  - source: "quartz/layout/components/graph"
+    layout:
+      position: "beforeBody"
+      priority: 10
+  - source: "github:quartz-community/content-meta"
     enabled: true
-  - source: "quartz/layout/components/search"
+    layout:
+      position: "beforeBody"
+      priority: 20
+  - source: "github:quartz-community/page-title"
     enabled: true
-  - source: "quartz/layout/components/backlinks"
+    layout:
+      position: "left"
+      priority: 10
+  - source: "github:quartz-community/darkmode"
     enabled: true
-  - source: "quartz/layout/components/article-title"
+    layout:
+      position: "left"
+      priority: 30
+  - source: "github:quartz-community/reader-mode"
     enabled: true
-  - source: "quartz/layout/components/content-meta"
+    layout:
+      position: "left"
+      priority: 35
+  - source: "github:quartz-community/breadcrumbs"
     enabled: true
-  - source: "quartz/layout/components/tag-list"
-    enabled: false
-  - source: "quartz/layout/components/page-title"
-    enabled: true
-  - source: "quartz/layout/components/darkmode"
-    enabled: true
-  - source: "quartz/layout/components/reader-mode"
-    enabled: true
-  - source: "quartz/layout/components/breadcrumbs"
-    enabled: true
-  - source: "quartz/layout/components/comments"
-    enabled: false
-  - source: "quartz/layout/components/footer"
+    layout:
+      position: "beforeBody"
+      priority: 5
+    options:
+      condition: "not-index"
+  - source: "github:quartz-community/footer"
     enabled: true
     options:
       links:
         - text: "GitHub"
           link: "https://github.com/fluffiea/test"
-  - source: "quartz/layout/components/recent-notes"
-    enabled: false
-  - source: "quartz/layout/components/spacer"
+  - source: "github:quartz-community/spacer"
     enabled: true
-  - source: "quartz/layout/components/unlisted-pages"
+    order: 25
+    layout:
+      position: "left"
+      priority: 25
+    options:
+      display: "mobile-only"
+  - source: "github:quartz-community/unlisted-pages"
     enabled: true
-  - source: "quartz/layout/components/encrypted-pages"
+    order: 45
+  - source: "github:quartz-community/encrypted-pages"
     enabled: true
-  - source: "quartz/layout/components/stacked-pages"
-    enabled: false
+    options:
+      iterations: 600000
+      passwordField: "password"
+      unlistWhenEncrypted: false
+      outputPath: "static/encryptedContentIndex.json"
+    order: 900
+    layout:
+      position: "body"
+      priority: 100
+    options:
+      display: "all"
