@@ -82,7 +82,7 @@ jobs:
           retry 3 bash -c '
             npm ci &&
             node quartz/bootstrap-cli.mjs plugin install &&
-            node quartz/bootstrap-cli.mjs plugin install --from-config
+            node quartz/bootstrap-cli.mjs plugin resolve
           '
 
       - name: Build Quartz Site
