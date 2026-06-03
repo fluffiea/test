@@ -9,10 +9,14 @@ configuration:
   ignorePatterns:
     - ".obsidian"
     - ".DS_Store"
-    - ".github"            # 优化：在网页中隐藏 CI/CD 文件夹
-    - "quartz.config.yaml" # 优化：在网页中隐藏配置文件
-    - ".gitignore"         # 优化：在网页中隐藏 Git 忽略文件
-    - "resources"          # 忽略 Obsidian 的 resources 附件目录，避免被当成笔记发布
+    - ".github"
+    - ".git"
+    - ".quartz-engine"
+    - ".quartz"
+    - "node_modules"
+    - "quartz.config.yaml"
+    - ".gitignore"
+    - "resources"
 
   theme:
     fontOrigin: "googleFonts"

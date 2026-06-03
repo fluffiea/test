@@ -17,6 +17,7 @@ concurrency:
 
 env:
   QUARTZ_VERSION: v5.0.0
+  NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
   build:
