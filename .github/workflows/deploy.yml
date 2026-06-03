@@ -16,7 +16,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # 固定版本便于复现；升级时请对照 release note 与 plugin install 子命令
   QUARTZ_VERSION: v5.0.0
   NODE_OPTIONS: --max-old-space-size=4096
 
@@ -25,92 +24,56 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout Notes
+      - name: Checkout vault
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
-      - name: Fetch Quartz Engine
+      - name: Clone Quartz engine
         run: |
           git clone --branch "${{ env.QUARTZ_VERSION }}" --depth 1 \
-            https://github.com/jackyzha0/quartz.git .quartz-engine
+            https://github.com/jackyzha0/quartz.git /tmp/quartz-engine
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: .quartz-engine/package-lock.json
+          cache-dependency-path: /tmp/quartz-engine/package-lock.json
 
       - name: Cache Quartz plugins
         uses: actions/cache@v5
         with:
-          path: .quartz-engine/.quartz/plugins
-          key: ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-${{ hashFiles('.quartz-engine/quartz.lock.json') }}
+          path: /tmp/quartz-engine/.quartz/plugins
+          key: ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-${{ hashFiles('/tmp/quartz-engine/quartz.lock.json') }}
           restore-keys: |
             ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-
             ${{ runner.os }}-quartz-plugins-
 
-      # 只同步 .md，Obsidian 根目录可加其它文件而无需改 CI
-      - name: Copy notes into Quartz content
-        run: |
-          rm -rf .quartz-engine/content
-          mkdir -p .quartz-engine/content
-          rsync -a --delete \
-            --include '*/' \
-            --include '*.md' \
-            --exclude '*' \
-            ./ .quartz-engine/content/
-          cp quartz.config.yaml .quartz-engine/quartz.config.yaml
+      - name: Copy Quartz config to engine directory
+        run: cp quartz.config.yaml /tmp/quartz-engine/quartz.config.yaml
 
       - name: Install dependencies
-        env:
-          npm_config_fetch_retries: "5"
-          npm_config_fetch_retry_mintimeout: "20000"
-          npm_config_fetch_retry_maxtimeout: "120000"
+        working-directory: /tmp/quartz-engine
         run: |
-          cd .quartz-engine
-          git config --global http.version HTTP/1.1
-
-          retry() {
-            local max="$1"
-            shift
-            local n=1
-            until "$@"; do
-              if [ "$n" -ge "$max" ]; then
-                echo "Failed after ${max} attempts: $*"
-                return 1
-              fi
-              echo "Attempt ${n}/${max} failed, retrying in 15s..."
-              sleep 15
-              n=$((n + 1))
-            done
-          }
-
-          retry 3 bash -c '
-            npm ci &&
-            node quartz/bootstrap-cli.mjs plugin install &&
-            node quartz/bootstrap-cli.mjs plugin resolve
-          '
+          npm ci
+          node quartz/bootstrap-cli.mjs plugin install
+          node quartz/bootstrap-cli.mjs plugin resolve
 
       - name: Build site
+        working-directory: /tmp/quartz-engine
         run: |
-          cd .quartz-engine
-          node quartz/bootstrap-cli.mjs build
-
-      - name: Apply GitHub Pages subpath fix
-        run: bash .github/scripts/patch-pages-subpath.sh quartz.config.yaml .quartz-engine/public
+          node quartz/bootstrap-cli.mjs build \
+            -d "${{ github.workspace }}" \
+            -o public
 
       - name: Verify build output
         run: |
-          test -f .quartz-engine/public/index.html
-          grep -q 'fetch("/test/static/contentIndex.json")' .quartz-engine/public/postscript.js
-          grep -q 'data-basepath="/test"' .quartz-engine/public/index.html
+          test -f /tmp/quartz-engine/public/index.html
+          grep -q 'data-basepath="/test"' /tmp/quartz-engine/public/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .quartz-engine/public
+          path: /tmp/quartz-engine/public
 
   deploy:
     needs: build
