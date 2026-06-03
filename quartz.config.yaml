@@ -6,6 +6,7 @@ configuration:
   analytics: null
   locale: "zh-CN"
   baseUrl: "fluffiea.github.io/test"
+  defaultDateType: modified
   ignorePatterns:
     - ".obsidian"
     - ".DS_Store"
@@ -51,7 +52,6 @@ plugins:
   - source: "github:quartz-community/created-modified-date"
     enabled: true
     options:
-      defaultDateType: "modified"
       priority:
         - frontmatter
         - git
