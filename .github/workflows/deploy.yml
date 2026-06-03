@@ -23,15 +23,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
       # 💡 核心修复：克隆官方仓库到单独的目录，并用稳定的版本
       - name: Fetch Quartz 5 Engine
         run: |
           git clone --branch v5 --depth 1 https://github.com/jackyzha0/quartz.git /tmp/quartz
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: /tmp/quartz/package-lock.json
 
       # 💡 核心修复：不再手动一条条拷贝 cp，而是把你的纯笔记目录变成它的 content
       - name: Symlink Notes to Quartz
@@ -67,6 +69,7 @@ jobs:
 
           retry 3 npm ci
           retry 3 node quartz/bootstrap-cli.mjs plugin install
+          node quartz/bootstrap-cli.mjs plugin install --from-config
 
       - name: Build Quartz Site
         run: |

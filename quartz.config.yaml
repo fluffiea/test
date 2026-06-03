@@ -48,7 +48,10 @@ plugins:
     enabled: true
     options:
       defaultDateType: "modified"
-    priority: ["frontmatter", "git", "filesystem"]
+      priority:
+        - frontmatter
+        - git
+        - filesystem
     order: 10
   - source: "github:quartz-community/syntax-highlighting"
     enabled: true
@@ -67,6 +70,8 @@ plugins:
       priority: 30
   - source: "github:quartz-community/crawl-links"
     enabled: true
+    options:
+      markdownLinkResolution: shortest
     order: 60
   - source: "github:quartz-community/description"
     enabled: true
@@ -88,7 +93,7 @@ plugins:
   - source: "github:quartz-community/og-image"
     enabled: true
   - source: "github:quartz-community/cname"
-    enabled: true
+    enabled: false
   - source: "github:quartz-community/note-properties"
     enabled: true
     options:
@@ -130,6 +135,9 @@ plugins:
     layout:
       position: "left"
       priority: 20
+      group: toolbar
+      groupOptions:
+        grow: true
   - source: "github:quartz-community/backlinks"
     enabled: true
     layout:
@@ -155,18 +163,19 @@ plugins:
     layout:
       position: "left"
       priority: 30
+      group: toolbar
   - source: "github:quartz-community/reader-mode"
     enabled: true
     layout:
       position: "left"
       priority: 35
+      group: toolbar
   - source: "github:quartz-community/breadcrumbs"
     enabled: true
     layout:
       position: "beforeBody"
       priority: 5
-    options:
-      condition: "not-index"
+      condition: not-index
   - source: "github:quartz-community/footer"
     enabled: true
     options:
@@ -189,8 +198,33 @@ plugins:
       passwordField: "password"
       unlistWhenEncrypted: false
       outputPath: "static/encryptedContentIndex.json"
-      display: "all"
     order: 900
     layout:
       position: "body"
       priority: 100
+      display: all
+
+layout:
+  groups:
+    toolbar:
+      priority: 35
+      direction: row
+      gap: 0.5rem
+  byPageType:
+    "404":
+      positions:
+        beforeBody: []
+        left: []
+        right: []
+    content: {}
+    folder:
+      exclude:
+        - reader-mode
+      positions:
+        right: []
+    tag:
+      exclude:
+        - reader-mode
+      positions:
+        right: []
+    canvas: {}
