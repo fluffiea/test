@@ -32,6 +32,9 @@ jobs:
           git clone --branch "${{ env.QUARTZ_VERSION }}" --depth 1 \
             https://github.com/jackyzha0/quartz.git /tmp/quartz-engine
 
+      - name: Copy Quartz config to engine directory
+        run: cp quartz.config.yaml /tmp/quartz-engine/quartz.config.yaml
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -47,9 +50,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-
             ${{ runner.os }}-quartz-plugins-
-
-      - name: Copy Quartz config to engine directory
-        run: cp quartz.config.yaml /tmp/quartz-engine/quartz.config.yaml
 
       - name: Install dependencies
         working-directory: /tmp/quartz-engine
