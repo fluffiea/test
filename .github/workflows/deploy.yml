@@ -51,18 +51,15 @@ jobs:
             ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-
             ${{ runner.os }}-quartz-plugins-
 
-      # 只复制笔记到 content，保持仓库根目录给 Obsidian，避免软链扫进 node_modules
+      # 只同步 .md，Obsidian 根目录可加其它文件而无需改 CI
       - name: Copy notes into Quartz content
         run: |
           rm -rf .quartz-engine/content
           mkdir -p .quartz-engine/content
           rsync -a --delete \
-            --exclude '.quartz-engine/' \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            --exclude '.obsidian/' \
-            --exclude 'quartz.config.yaml' \
-            --exclude '.gitignore' \
+            --include '*/' \
+            --include '*.md' \
+            --exclude '*' \
             ./ .quartz-engine/content/
           cp quartz.config.yaml .quartz-engine/quartz.config.yaml
 
@@ -102,10 +99,13 @@ jobs:
           node quartz/bootstrap-cli.mjs build
 
       - name: Apply GitHub Pages subpath fix
-        run: bash .github/scripts/patch-pages-subpath.sh .quartz-engine/public/postscript.js
+        run: bash .github/scripts/patch-pages-subpath.sh quartz.config.yaml .quartz-engine/public
 
       - name: Verify build output
-        run: test -f .quartz-engine/public/index.html
+        run: |
+          test -f .quartz-engine/public/index.html
+          grep -q 'fetch("/test/static/contentIndex.json")' .quartz-engine/public/postscript.js
+          grep -q 'data-basepath="/test"' .quartz-engine/public/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
