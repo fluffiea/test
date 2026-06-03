@@ -1,9 +1,10 @@
-name: Deploy Nook to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,21 +12,26 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
+
+env:
+  QUARTZ_VERSION: v5.0.0
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Notes
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Fetch Quartz 5 Engine
+      - name: Fetch Quartz Engine
         run: |
-          git clone --branch v5 --depth 1 https://github.com/jackyzha0/quartz.git .quartz-engine
+          git clone --branch "${{ env.QUARTZ_VERSION }}" --depth 1 \
+            https://github.com/jackyzha0/quartz.git .quartz-engine
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -33,6 +39,15 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: .quartz-engine/package-lock.json
+
+      - name: Cache Quartz plugins
+        uses: actions/cache@v5
+        with:
+          path: .quartz-engine/.quartz/plugins
+          key: ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-${{ hashFiles('.quartz-engine/quartz.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-
+            ${{ runner.os }}-quartz-plugins-
 
       - name: Symlink Notes to Quartz
         run: |
@@ -64,14 +79,19 @@ jobs:
             done
           }
 
-          retry 3 npm ci
-          retry 3 node quartz/bootstrap-cli.mjs plugin install
-          node quartz/bootstrap-cli.mjs plugin install --from-config
+          retry 3 bash -c '
+            npm ci &&
+            node quartz/bootstrap-cli.mjs plugin install -c 2 &&
+            node quartz/bootstrap-cli.mjs plugin install --from-config -c 2
+          '
 
       - name: Build Quartz Site
         run: |
           cd .quartz-engine
           node quartz/bootstrap-cli.mjs build
+
+      - name: Verify build output
+        run: test -f .quartz-engine/public/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -80,10 +100,11 @@ jobs:
 
   deploy:
     needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
