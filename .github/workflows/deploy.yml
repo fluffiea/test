@@ -42,11 +42,31 @@ jobs:
           cp quartz.config.yaml /tmp/quartz/quartz.config.yaml
 
       - name: Install Dependencies
+        env:
+          npm_config_fetch_retries: "5"
+          npm_config_fetch_retry_mintimeout: "20000"
+          npm_config_fetch_retry_maxtimeout: "120000"
         run: |
           cd /tmp/quartz
-          npm ci
-          # 运行官方提供的本地插件安装
-          node quartz/bootstrap-cli.mjs plugin install
+          git config --global http.version HTTP/1.1
+
+          retry() {
+            local max="$1"
+            shift
+            local n=1
+            until "$@"; do
+              if [ "$n" -ge "$max" ]; then
+                echo "Failed after ${max} attempts: $*"
+                return 1
+              fi
+              echo "Attempt ${n}/${max} failed, retrying in 15s..."
+              sleep 15
+              n=$((n + 1))
+            done
+          }
+
+          retry 3 npm ci
+          retry 3 node quartz/bootstrap-cli.mjs plugin install
 
       - name: Build Quartz Site
         run: |
