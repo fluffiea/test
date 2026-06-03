@@ -91,6 +91,13 @@ jobs:
           cd .quartz-engine
           node quartz/bootstrap-cli.mjs build
 
+      # v5.0.0 Explorer 硬编码 /static/contentIndex.json，项目站需带 basePath
+      - name: Patch Explorer for Pages subpath
+        run: |
+          POSTSCRIPT=".quartz-engine/public/postscript.js"
+          sed -i 's#fetch("/static/contentIndex.json")#fetch((document.body.dataset.basepath||"")+"/static/contentIndex.json")#g' "$POSTSCRIPT"
+          sed -i 's#href="/"+#href=(document.body.dataset.basepath||"")+"/"+#g' "$POSTSCRIPT"
+
       - name: Verify build output
         run: test -f .quartz-engine/public/index.html
 
