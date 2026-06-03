@@ -64,8 +64,20 @@ print(f"Patched {path} (basePath={prefix!r}, {total} replacements)")
 PY
 
 if [ -n "$BASEPATH" ]; then
-  find "$PUBLIC" -name '*.html' -print0 | while IFS= read -r -d '' file; do
-    grep -q 'data-basepath=' "$file" && continue
-    perl -pi -e "s/<body data-slug=\"([^\"]*)\">/<body data-slug=\"\$1\" data-basepath=\"${BASEPATH}\">/g" "$file"
-  done
+  export BASEPATH PUBLIC
+  python3 <<'PY'
+import os
+import pathlib
+import re
+
+base = os.environ["BASEPATH"]
+public = pathlib.Path(os.environ["PUBLIC"])
+pat = re.compile(r'<body data-slug="([^"]*)">')
+repl = rf'<body data-slug="\1" data-basepath="{base}">'
+for html in public.rglob("*.html"):
+    text = html.read_text(encoding="utf-8")
+    if "data-basepath=" in text:
+        continue
+    html.write_text(pat.sub(repl, text), encoding="utf-8")
+PY
 fi
