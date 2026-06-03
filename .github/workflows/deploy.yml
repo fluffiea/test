@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  # 固定版本便于复现；升级时请对照 release note 与 plugin install 子命令
   QUARTZ_VERSION: v5.0.0
   NODE_OPTIONS: --max-old-space-size=4096
 
@@ -50,13 +51,22 @@ jobs:
             ${{ runner.os }}-quartz-plugins-${{ env.QUARTZ_VERSION }}-
             ${{ runner.os }}-quartz-plugins-
 
-      - name: Symlink Notes to Quartz
+      # 只复制笔记到 content，保持仓库根目录给 Obsidian，避免软链扫进 node_modules
+      - name: Copy notes into Quartz content
         run: |
           rm -rf .quartz-engine/content
-          ln -s "$(pwd)" .quartz-engine/content
+          mkdir -p .quartz-engine/content
+          rsync -a --delete \
+            --exclude '.quartz-engine/' \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.obsidian/' \
+            --exclude 'quartz.config.yaml' \
+            --exclude '.gitignore' \
+            ./ .quartz-engine/content/
           cp quartz.config.yaml .quartz-engine/quartz.config.yaml
 
-      - name: Install Dependencies
+      - name: Install dependencies
         env:
           npm_config_fetch_retries: "5"
           npm_config_fetch_retry_mintimeout: "20000"
@@ -86,17 +96,13 @@ jobs:
             node quartz/bootstrap-cli.mjs plugin resolve
           '
 
-      - name: Build Quartz Site
+      - name: Build site
         run: |
           cd .quartz-engine
           node quartz/bootstrap-cli.mjs build
 
-      # v5.0.0 Explorer 硬编码 /static/contentIndex.json，项目站需带 basePath
-      - name: Patch Explorer for Pages subpath
-        run: |
-          POSTSCRIPT=".quartz-engine/public/postscript.js"
-          sed -i 's#fetch("/static/contentIndex.json")#fetch((document.body.dataset.basepath||"")+"/static/contentIndex.json")#g' "$POSTSCRIPT"
-          sed -i 's#href="/"+#href=(document.body.dataset.basepath||"")+"/"+#g' "$POSTSCRIPT"
+      - name: Apply GitHub Pages subpath fix
+        run: bash .github/scripts/patch-pages-subpath.sh .quartz-engine/public/postscript.js
 
       - name: Verify build output
         run: test -f .quartz-engine/public/index.html
