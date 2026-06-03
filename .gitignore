@@ -1,6 +1,7 @@
 node_modules/
 public/
 .quartz/
+.quartz-engine/
 .DS_Store
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json

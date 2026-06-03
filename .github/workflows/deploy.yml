@@ -23,25 +23,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 💡 核心修复：克隆官方仓库到单独的目录，并用稳定的版本
       - name: Fetch Quartz 5 Engine
         run: |
-          git clone --branch v5 --depth 1 https://github.com/jackyzha0/quartz.git /tmp/quartz
+          git clone --branch v5 --depth 1 https://github.com/jackyzha0/quartz.git .quartz-engine
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: /tmp/quartz/package-lock.json
+          cache-dependency-path: .quartz-engine/package-lock.json
 
-      # 💡 核心修复：不再手动一条条拷贝 cp，而是把你的纯笔记目录变成它的 content
       - name: Symlink Notes to Quartz
         run: |
-          # content 必须是链接本身，不能是已存在目录，否则 ln 会创建 content/<仓库名>/ 子目录
-          rm -rf /tmp/quartz/content
-          ln -s "$(pwd)" /tmp/quartz/content
-          cp quartz.config.yaml /tmp/quartz/quartz.config.yaml
+          rm -rf .quartz-engine/content
+          ln -s "$(pwd)" .quartz-engine/content
+          cp quartz.config.yaml .quartz-engine/quartz.config.yaml
 
       - name: Install Dependencies
         env:
@@ -49,7 +46,7 @@ jobs:
           npm_config_fetch_retry_mintimeout: "20000"
           npm_config_fetch_retry_maxtimeout: "120000"
         run: |
-          cd /tmp/quartz
+          cd .quartz-engine
           git config --global http.version HTTP/1.1
 
           retry() {
@@ -73,14 +70,13 @@ jobs:
 
       - name: Build Quartz Site
         run: |
-          cd /tmp/quartz
+          cd .quartz-engine
           node quartz/bootstrap-cli.mjs build
 
-      # 💡 将在 /tmp/quartz/public 生成的静态网页抽取出来准备上传
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: /tmp/quartz/public
+          path: .quartz-engine/public
 
   deploy:
     needs: build
